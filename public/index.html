@@ -140,6 +140,9 @@
   .review .row { display: flex; gap: 8px; font-size: 13px; color: var(--ink-soft); margin-bottom: 2px; }
   .review .yours { white-space: pre-wrap; font-size: 14px; margin: 4px 0; }
   .review .ex { font-size: 13px; color: var(--ink-soft); margin: 0; }
+  .picker { display: flex; flex-wrap: wrap; gap: 8px; margin: -12px 0 16px; }
+  .picker button { padding: 8px 18px; border-radius: 999px; font-size: 14px; background: var(--paper); }
+  .picker button[aria-pressed="true"] { border-color: var(--accent); color: var(--accent); font-weight: 700; }
   .dist { margin: 0 0 28px; }
   .dist-caption { color: var(--ink-soft); font-size: 14px; margin: 0 0 14px; }
   .dist-caption b { color: var(--accent); }
@@ -163,6 +166,9 @@
       <p id="quiz-subtitle"></p>
     </div>
   </header>
+
+  <!-- Quiz picker: shown on the start screen when there is more than one quiz -->
+  <nav id="picker" class="picker hidden" aria-label="検定を選ぶ"></nav>
 
   <!-- Start -->
   <section id="start" class="card">
@@ -416,7 +422,7 @@ async function startGame() {
   $("start-btn").disabled = true;
   let id;
   try {
-    const res = await fetch(`/api/start${QUIZ_QS}`, { method: "POST" });
+    const res = await fetch(`/api/start?quiz=${encodeURIComponent(bank.id)}`, { method: "POST" });
     if (!res.ok) throw new Error(res.statusText);
     id = (await res.json()).gameId;
   } catch (e) {
@@ -436,13 +442,18 @@ async function startGame() {
     honor: document.querySelector("input[name=honor]:checked")?.value || "",
   };
   $("start").classList.add("hidden");
+  $("picker").classList.add("hidden");
   $("result").classList.add("hidden");
   $("quiz").classList.remove("hidden");
   showQuestion();
 }
 
 $("start-btn").onclick = startGame;
-$("again-btn").onclick = () => { $("result").classList.add("hidden"); $("start").classList.remove("hidden"); };
+$("again-btn").onclick = () => {
+  $("result").classList.add("hidden");
+  $("start").classList.remove("hidden");
+  $("picker").classList.toggle("hidden", quizList.length < 2);
+};
 $("submit-btn").onclick = () => submit($("answer").value.trim());
 $("skip-btn").onclick = () => submit("");
 $("next-btn").onclick = () => game.history.length >= bank.rules.questionsPerGame ? showResult() : showQuestion();
@@ -451,8 +462,8 @@ $("answer").addEventListener("keydown", (e) => {
 });
 
 // ?quiz=<id> picks a quiz from quizzes/; without it the server's default is used.
-const QUIZ_ID = new URLSearchParams(location.search).get("quiz");
-const QUIZ_QS = QUIZ_ID ? `?quiz=${encodeURIComponent(QUIZ_ID)}` : "";
+// The picker switches quizzes in place and keeps ?quiz= in the address bar.
+let quizList = [];
 
 function renderIntro(meta, rules) {
   document.title = meta.title || "MulmoKentei";
@@ -470,23 +481,51 @@ function renderIntro(meta, rules) {
       `<label><input type="radio" name="honor" value="${esc(v)}" ${v ? "" : "checked"}><span>${v ? esc(v) : "指定しない"}</span></label>`
     ).join("");
     $("honor-field").classList.remove("hidden");
+  } else {
+    $("honor-chips").innerHTML = "";
+    $("honor-field").classList.add("hidden");
   }
 }
 
-fetch(`/api/quiz${QUIZ_QS}`)
-  .then((r) => { if (!r.ok) throw new Error(r.statusText); return r.json(); })
-  .then((b) => {
-    bank = b;
-    renderIntro(b.meta || {}, b.rules);
+function renderPicker() {
+  $("picker").innerHTML = quizList.map((q) =>
+    `<button type="button" data-id="${esc(q.id)}" aria-pressed="${bank && q.id === bank.id}" title="${esc(q.subtitle)}">${esc(q.title)}</button>`
+  ).join("");
+  $("picker").classList.toggle("hidden", quizList.length < 2 || $("start").classList.contains("hidden"));
+}
+
+async function loadQuiz(id) {
+  $("start-btn").disabled = true;
+  $("start-btn").textContent = "読み込み中…";
+  $("start-error").classList.add("hidden");
+  try {
+    const r = await fetch(`/api/quiz${id ? `?quiz=${encodeURIComponent(id)}` : ""}`);
+    if (!r.ok) throw new Error(r.statusText);
+    bank = await r.json();
+    renderIntro(bank.meta || {}, bank.rules);
     $("start-btn").disabled = false;
     $("start-btn").textContent = "始める";
-  })
-  .catch(() => {
-    $("start-error").textContent = QUIZ_ID
-      ? `クイズ「${QUIZ_ID}」が見つかりませんでした。`
-      : "問題を読み込めませんでした。";
+  } catch {
+    $("start-error").textContent = id ? `クイズ「${id}」が見つかりませんでした。` : "問題を読み込めませんでした。";
     $("start-error").classList.remove("hidden");
-  });
+  }
+  renderPicker();
+}
+
+$("picker").onclick = (e) => {
+  const id = e.target.closest("button")?.dataset.id;
+  if (!id || id === bank?.id) return;
+  const url = new URL(location.href);
+  url.searchParams.set("quiz", id);
+  history.replaceState(null, "", url);
+  loadQuiz(id);
+};
+
+fetch("/api/quizzes")
+  .then((r) => (r.ok ? r.json() : { quizzes: [] }))
+  .catch(() => ({ quizzes: [] }))
+  .then((list) => { quizList = list.quizzes; renderPicker(); });
+loadQuiz(new URLSearchParams(location.search).get("quiz"));
 </script>
 </body>
 </html>

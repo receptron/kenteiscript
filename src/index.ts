@@ -125,6 +125,16 @@ async function finishGame(env: Env, body: Record<string, unknown>) {
 export default {
   async fetch(request: Request, env: Env): Promise<Response> {
     const url = new URL(request.url);
+    if (request.method === "GET" && url.pathname === "/api/quizzes") {
+      // The quizzes offered on the start screen, default first. meta.hidden leaves one out
+      // of the list; it can still be opened with ?quiz=<id>.
+      const first = resolveQuizId(env, null);
+      const list = quizIds
+        .filter((id) => !quizzes[id].meta.hidden)
+        .sort((a, b) => Number(b === first) - Number(a === first))
+        .map((id) => ({ id, title: quizzes[id].meta.title ?? id, subtitle: quizzes[id].meta.subtitle ?? "" }));
+      return json(200, { default: first, quizzes: list });
+    }
     if (request.method === "GET" && url.pathname === "/api/quiz") {
       const id = resolveQuizId(env, url.searchParams.get("quiz"));
       return id ? json(200, publicQuiz(id, quizzes[id])) : json(404, { error: "quiz not found", available: quizIds });

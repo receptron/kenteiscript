@@ -20,7 +20,8 @@ using a local D1 database.
 
 > 日本語：自由記述で答えるクイズを、判定モデル（TypeSafe JEV）で採点するアプリです。知識問題（正解・惜しい・不正解）と、
 > 考えて書く記述問題（0〜3 の段階評価）を混ぜられ、正解すると難しく、間違えると易しくなります。問題集は `quizzes/` の
-> JSON ファイルで、`?quiz=<名前>` で切り替えられます。サンプルとして「戦国検定」（110 問）と「日本地理ミニ検定」が入っています。
+> JSON ファイルで、トップ画面のタブ（または `?quiz=<名前>`）で切り替えられます。「戦国検定」（110 問）と「機械学習検定」（85 問）、
+> 形式の見本として「日本地理ミニ検定」が入っています。
 
 ## Quick start (local)
 
@@ -53,10 +54,19 @@ npm run typecheck
 
 ## Quizzes
 
-Every `quizzes/<name>.json` is bundled into the Worker. To choose which one players see:
+Every `quizzes/<name>.json` is bundled into the Worker. Three come with the repo:
 
-- **Default quiz:** set `QUIZ` in `wrangler.jsonc` (`"sengoku"` out of the box).
-- **Any other quiz:** open `/?quiz=<name>`, e.g. `/?quiz=example`.
+| file | quiz | questions |
+|---|---|---|
+| `sengoku.json` | 戦国検定 (Japan's Sengoku period) | 110 |
+| `ml.json` | 機械学習検定 (machine learning) | 85 |
+| `example.json` | 日本地理ミニ検定, a small format sample (hidden from the picker) | 12 |
+
+- **Picker:** the start screen shows a tab for each quiz, so players can switch between them.
+  A quiz with `"hidden": true` in its `meta` is left out of the tabs.
+- **Default quiz:** set `QUIZ` in `wrangler.jsonc` (`"sengoku"` out of the box). It comes first
+  in the tabs and is the one shown at `/`.
+- **Link to a quiz:** `/?quiz=<name>`, e.g. `/?quiz=ml`. This also opens hidden quizzes.
 
 Results are stored per quiz, so each quiz has its own chart. To add a quiz, drop a JSON file into
 `quizzes/`. `wrangler dev` picks it up straight away, and `npm run deploy` publishes it.
@@ -69,6 +79,7 @@ Results are stored per quiz, so each quiz has its own chart. To add a quiz, drop
     "title": "戦国検定",
     "subtitle": "自分の言葉で答える、戦国時代の十問",
     "seal": ["戦国", "検定"],                 // the stamp in the header, one string per line
+    "hidden": false,                          // true: not shown in the picker (still opens via ?quiz=)
     "introHeading": "いざ、出陣",
     "intro": "選択肢はありません。…",
     "rules": ["全部で 10 問。…", "…"],        // bullet list on the start screen
@@ -150,7 +161,8 @@ name, change `name` and `database_name` in `wrangler.jsonc` first.
 ## How it works
 
 ```
-browser ── GET  /api/quiz?quiz=…   questions without criteria
+browser ── GET  /api/quizzes       titles for the picker
+        ── GET  /api/quiz?quiz=…   questions without criteria
         ── POST /api/start         new game (stored in D1)
         ── POST /api/grade         Worker → JEV → points stored in D1
         ── POST /api/finish        Worker totals its own stored points → plays table → chart stats

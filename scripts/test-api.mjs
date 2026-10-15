@@ -39,6 +39,14 @@ const raw = JSON.stringify(quiz);
 check(!/"(jev|instructions|criteria|explanation)"/.test(raw), "criteria, answers and explanations are not sent to the browser");
 check((await fetch(`${base}/api/quiz?quiz=__nope__`)).status === 404, "unknown quiz is a 404");
 
+const listRes = await fetch(`${base}/api/quizzes`);
+const list = await listRes.json();
+const listed = list.quizzes?.map((q) => q.id) ?? [];
+check(listRes.ok && listed[0] === list.default, "quiz list starts with the default quiz", listed.join(", "));
+check(!/"(jev|instructions|criteria|explanation|questions)"/.test(JSON.stringify(list)), "quiz list carries titles only");
+const loads = await Promise.all(listed.map((id) => fetch(`${base}/api/quiz?quiz=${encodeURIComponent(id)}`)));
+check(loads.every((r) => r.ok), "every listed quiz loads");
+
 check((await post("/api/grade", { gameId: "nope", id: quiz.questions[0].id, answer: "x" })).status === 400,
   "grading without a game is refused");
 

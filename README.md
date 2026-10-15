@@ -1,4 +1,4 @@
-# MulmoDecision
+# MulmoKentei（マルモ検定）
 
 Free-answer quizzes graded by a **decision model**.
 
@@ -144,7 +144,7 @@ npm run setup:cloudflare      # once: creates the D1 database, records its id in
 npm run deploy                # every time after that
 ```
 
-The site is then at `https://mulmodecision.<your-subdomain>.workers.dev`. To use a different
+The site is then at `https://mulmo-kentei.<your-subdomain>.workers.dev`. To use a different
 name, change `name` and `database_name` in `wrangler.jsonc` first.
 
 ## How it works

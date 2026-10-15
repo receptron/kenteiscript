@@ -1,6 +1,6 @@
 {
   "$schema": "node_modules/wrangler/config-schema.json",
-  "name": "mulmodecision",
+  "name": "mulmo-kentei",
   "main": "src/index.ts",
   "compatibility_date": "2026-09-01",
   // Bundles quizzes/*.json into the Worker before every `wrangler dev` / `wrangler deploy`.
@@ -14,7 +14,7 @@
   "d1_databases": [
     {
       "binding": "DB",
-      "database_name": "mulmodecision",
+      "database_name": "mulmo-kentei",
       // Filled in by `npm run setup:cloudflare`. Any value works for local development.
       "database_id": "00000000-0000-0000-0000-000000000000"
     }

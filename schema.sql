@@ -1,4 +1,4 @@
--- MulmoDecision D1 schema. Applied by `npm run setup` (local) and `npm run setup:cloudflare` (remote).
+-- MulmoKentei D1 schema. Applied by `npm run setup` (local) and `npm run setup:cloudflare` (remote).
 CREATE TABLE IF NOT EXISTS games (
   id TEXT PRIMARY KEY,
   quiz TEXT NOT NULL,

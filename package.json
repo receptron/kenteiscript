@@ -1,5 +1,5 @@
 {
-  "name": "mulmodecision",
+  "name": "mulmo-kentei",
   "version": "0.1.0",
   "description": "Free-answer quizzes graded by a decision model (TypeSafe JEV), on Cloudflare Workers + D1",
   "private": true,

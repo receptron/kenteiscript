@@ -1,4 +1,4 @@
-// MulmoDecision Worker: serves the quiz API, grades answers with JEV, and keeps
+// MulmoKentei Worker: serves the quiz API, grades answers with JEV, and keeps
 // games and results in D1. The page is served from public/ as static assets.
 import { gradeAnswer, gradeFor, publicQuiz, type Quiz } from "./grading.ts";
 import { quizzes } from "./quizzes.gen.ts"; // generated from quizzes/*.json by scripts/gen-quizzes.mjs

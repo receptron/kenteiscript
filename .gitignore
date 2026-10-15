@@ -1,0 +1,15 @@
+# secrets
+.env
+.env.*
+!.env.example
+.dev.vars
+
+# dependencies and build output
+node_modules/
+.wrangler/
+src/quizzes.gen.ts
+worker-configuration.d.ts
+
+# test output
+test-results/
+.DS_Store

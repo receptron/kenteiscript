@@ -1,0 +1,492 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>MulmoDecision</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Shippori+Mincho:wght@500;700;800&family=Noto+Sans+JP:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #f4ede0;
+    --paper: #fbf7ef;
+    --ink: #1f1a17;
+    --ink-soft: #5c524a;
+    --line: #d8ccb8;
+    --accent: #b8322a;
+    --accent-ink: #ffffff;
+    --good: #2f6b45;
+    --mid: #a26a12;
+    --bad: #8d2a24;
+    --shadow: 0 1px 2px rgba(60, 40, 20, .08), 0 8px 24px rgba(60, 40, 20, .08);
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #15171c;
+      --paper: #1e2128;
+      --ink: #ece6da;
+      --ink-soft: #a9a196;
+      --line: #343843;
+      --accent: #e0574c;
+      --accent-ink: #1a0c0a;
+      --good: #6cc08a;
+      --mid: #e2ac4f;
+      --bad: #ee7b72;
+      --shadow: 0 1px 2px rgba(0, 0, 0, .3), 0 8px 24px rgba(0, 0, 0, .3);
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg: #15171c; --paper: #1e2128; --ink: #ece6da; --ink-soft: #a9a196; --line: #343843;
+    --accent: #e0574c; --accent-ink: #1a0c0a; --good: #6cc08a; --mid: #e2ac4f; --bad: #ee7b72;
+    --shadow: 0 1px 2px rgba(0, 0, 0, .3), 0 8px 24px rgba(0, 0, 0, .3);
+  }
+
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--ink);
+    font: 16px/1.75 "Noto Sans JP", system-ui, sans-serif;
+    -webkit-font-smoothing: antialiased;
+  }
+  .wrap { max-width: 720px; margin: 0 auto; padding: 32px 16px 64px; }
+  header { display: flex; align-items: center; gap: 14px; margin-bottom: 28px; }
+  .seal {
+    flex: none; width: 48px; height: 48px; border-radius: 8px;
+    background: var(--accent); color: var(--accent-ink);
+    display: grid; place-items: center;
+    font: 800 15px/1.05 "Shippori Mincho", serif; text-align: center; letter-spacing: .05em;
+    transform: rotate(-4deg);
+  }
+  h1 { font: 800 28px/1.2 "Shippori Mincho", serif; margin: 0; letter-spacing: .08em; }
+  header p { margin: 0; color: var(--ink-soft); font-size: 13px; }
+
+  .card {
+    background: var(--paper);
+    border: 1px solid var(--line);
+    border-radius: 14px;
+    box-shadow: var(--shadow);
+    padding: 28px;
+  }
+  @media (max-width: 520px) { .card { padding: 20px; } }
+  .hidden { display: none !important; }
+
+  h2 { font: 700 22px/1.4 "Shippori Mincho", serif; margin: 0 0 12px; }
+  .lead { color: var(--ink-soft); margin: 0 0 20px; }
+  ul.rules { margin: 0 0 24px; padding-left: 1.2em; color: var(--ink-soft); }
+  ul.rules li { margin: 4px 0; }
+
+  fieldset { border: 0; padding: 0; margin: 0 0 24px; }
+  legend { font-weight: 700; margin-bottom: 8px; font-size: 14px; }
+  .chips { display: flex; flex-wrap: wrap; gap: 8px; }
+  .chips label {
+    border: 1px solid var(--line); border-radius: 999px; padding: 6px 16px; cursor: pointer;
+    font-size: 14px; user-select: none;
+  }
+  .chips input { position: absolute; opacity: 0; pointer-events: none; }
+  .chips input:checked + span { color: var(--accent); font-weight: 700; }
+  .chips label:has(input:checked) { border-color: var(--accent); }
+  .chips label:has(input:focus-visible) { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+  button {
+    font: inherit; cursor: pointer; border-radius: 10px; padding: 12px 24px;
+    border: 1px solid var(--line); background: transparent; color: var(--ink);
+  }
+  button.primary { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); font-weight: 700; }
+  button:disabled { opacity: .5; cursor: default; }
+  button:focus-visible, textarea:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+  .actions { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }
+  .hint { color: var(--ink-soft); font-size: 12px; margin-left: auto; }
+
+  .progress { display: flex; gap: 6px; margin-bottom: 20px; }
+  .progress span { flex: 1; height: 6px; border-radius: 3px; background: var(--line); }
+  .progress span.now { background: var(--ink-soft); }
+  .progress span.r-good { background: var(--good); }
+  .progress span.r-mid { background: var(--mid); }
+  .progress span.r-bad { background: var(--bad); }
+
+  .meta { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 10px; font-size: 13px; color: var(--ink-soft); }
+  .stars { letter-spacing: .15em; color: var(--accent); font-size: 14px; }
+  .stars .off { color: var(--line); }
+  .question { font: 700 20px/1.65 "Shippori Mincho", serif; margin: 0 0 8px; }
+  .open-note { font-size: 13px; color: var(--ink-soft); margin: 0 0 16px; }
+  textarea {
+    width: 100%; resize: vertical; font: inherit; color: var(--ink); background: var(--bg);
+    border: 1px solid var(--line); border-radius: 10px; padding: 12px 14px; margin: 8px 0 16px;
+  }
+
+  .feedback { margin-top: 20px; border-top: 1px dashed var(--line); padding-top: 20px; }
+  .verdict { display: flex; align-items: center; gap: 12px; margin-bottom: 8px; }
+  .mark { font: 800 34px/1 "Shippori Mincho", serif; }
+  .verdict b { font: 700 20px/1.3 "Shippori Mincho", serif; }
+  .verdict small { color: var(--ink-soft); }
+  .good { color: var(--good); } .mid { color: var(--mid); } .bad { color: var(--bad); }
+  .explain { margin: 0 0 6px; }
+  .next-level { font-size: 13px; color: var(--ink-soft); margin: 0 0 18px; }
+  .error { color: var(--bad); font-size: 14px; margin: 0 0 12px; }
+
+  .result-head { text-align: center; padding: 8px 0 20px; }
+  .grade-seal {
+    display: inline-grid; place-items: center; width: 132px; height: 132px; border-radius: 50%;
+    border: 5px double var(--accent); color: var(--accent);
+    font: 800 46px/1 "Shippori Mincho", serif; transform: rotate(-6deg); margin-bottom: 16px;
+  }
+  .title-name { font: 800 26px/1.4 "Shippori Mincho", serif; margin: 0; }
+  .score-line { color: var(--ink-soft); margin: 4px 0 0; }
+  .review { list-style: none; margin: 20px 0 24px; padding: 0; border-top: 1px solid var(--line); }
+  .review li { padding: 14px 0; border-bottom: 1px solid var(--line); }
+  .review .q { font-weight: 700; margin-bottom: 4px; }
+  .review .row { display: flex; gap: 8px; font-size: 13px; color: var(--ink-soft); margin-bottom: 2px; }
+  .review .yours { white-space: pre-wrap; font-size: 14px; margin: 4px 0; }
+  .review .ex { font-size: 13px; color: var(--ink-soft); margin: 0; }
+  .dist { margin: 0 0 28px; }
+  .dist-caption { color: var(--ink-soft); font-size: 14px; margin: 0 0 14px; }
+  .dist-caption b { color: var(--accent); }
+  .bar-row { display: grid; grid-template-columns: 40px minmax(0, 1fr) 76px; align-items: center; gap: 10px; margin: 6px 0; font-size: 13px; }
+  .bar-row .g { font-weight: 700; }
+  .bar-row .track { height: 18px; }
+  .bar-row .fill { height: 100%; min-width: 2px; border-radius: 0 4px 4px 0; background: var(--line); }
+  .bar-row .n { text-align: right; color: var(--ink-soft); font-variant-numeric: tabular-nums; }
+  .bar-row.me .g, .bar-row.me .n { color: var(--accent); font-weight: 700; }
+  .bar-row.me .fill { background: var(--accent); }
+  .bar-row .title { display: block; font-size: 11px; color: var(--ink-soft); font-weight: 400; margin-top: 1px; }
+  .bar-row.me .title { color: var(--accent); }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div id="seal" class="seal"></div>
+    <div>
+      <h1 id="quiz-title"></h1>
+      <p id="quiz-subtitle"></p>
+    </div>
+  </header>
+
+  <!-- Start -->
+  <section id="start" class="card">
+    <h2 id="intro-heading"></h2>
+    <p id="intro" class="lead"></p>
+    <ul id="rules" class="rules"></ul>
+    <fieldset id="honor-field" class="hidden">
+      <legend id="honor-legend"></legend>
+      <div id="honor-chips" class="chips"></div>
+    </fieldset>
+    <p id="start-error" class="error hidden"></p>
+    <button id="start-btn" class="primary" disabled>読み込み中…</button>
+  </section>
+
+  <!-- Question -->
+  <section id="quiz" class="card hidden">
+    <div id="progress" class="progress" aria-hidden="true"></div>
+    <div class="meta">
+      <span id="q-count"></span>
+      <span>難しさ <span id="q-stars" class="stars"></span></span>
+    </div>
+    <p id="q-text" class="question"></p>
+    <p id="q-note" class="open-note"></p>
+    <label for="answer" class="hidden">答え</label>
+    <textarea id="answer" rows="2" placeholder="ここに答えを書く"></textarea>
+    <p id="q-error" class="error hidden"></p>
+    <div id="answer-actions" class="actions">
+      <button id="submit-btn" class="primary">答える</button>
+      <button id="skip-btn">わからない</button>
+      <span class="hint">⌘ / Ctrl + Enter でも答えられます</span>
+    </div>
+    <div id="feedback" class="feedback hidden">
+      <div class="verdict">
+        <span id="fb-mark" class="mark"></span>
+        <div><b id="fb-label"></b><br><small id="fb-sub"></small></div>
+      </div>
+      <p id="fb-explain" class="explain"></p>
+      <p id="fb-next" class="next-level"></p>
+      <button id="next-btn" class="primary">次の問題へ</button>
+    </div>
+  </section>
+
+  <!-- Result -->
+  <section id="result" class="card hidden">
+    <div class="result-head">
+      <div id="r-grade" class="grade-seal"></div>
+      <p class="score-line">あなたの称号は</p>
+      <p id="r-title" class="title-name"></p>
+      <p id="r-score" class="score-line"></p>
+    </div>
+    <h2>みんなの判定</h2>
+    <div id="r-dist" class="dist"></div>
+    <h2>ふりかえり</h2>
+    <ol id="r-review" class="review"></ol>
+    <button id="again-btn" class="primary">もう一度挑む</button>
+  </section>
+</div>
+
+<script>
+const $ = (id) => document.getElementById(id);
+const esc = (s) => String(s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]);
+
+const SCORE_LABELS = ["的外れ", "もう一歩", "よく考えた", "お見事"];
+const CHOICE_VIEW = {
+  correct: { mark: "◯", label: "正解", cls: "good" },
+  close: { mark: "△", label: "惜しい", cls: "mid" },
+  wrong: { mark: "✕", label: "不正解", cls: "bad" },
+};
+
+let bank = null;
+let game = null;
+
+function stars(level) {
+  return "★".repeat(level) + `<span class="off">${"★".repeat(5 - level)}</span>`;
+}
+
+// up / stay / down, following rules.next in questions.json
+function move(g) {
+  if (g.type === "Choice") return g.result === "correct" ? 1 : g.result === "close" ? 0 : -1;
+  const level = Number(g.result);
+  return level === 3 ? 1 : level === 2 ? 0 : -1;
+}
+
+function view(g) {
+  if (g.type === "Choice") return CHOICE_VIEW[g.result];
+  const level = Number(g.result);
+  const cls = level === 3 ? "good" : level === 2 ? "mid" : "bad";
+  return { mark: "★".repeat(level) || "―", label: `評価 ${level} / 3 「${SCORE_LABELS[level]}」`, cls };
+}
+
+// A random unused question at this level; if the level has run out, the nearest level that has one.
+function pickQuestion(level) {
+  const unused = bank.questions.filter((q) => !game.used.has(q.id));
+  const distance = (q) => Math.abs(q.level - level);
+  const nearest = Math.min(...unused.map(distance));
+  const pool = unused.filter((q) => distance(q) === nearest);
+  return pool[Math.floor(Math.random() * pool.length)];
+}
+
+function gradeFor(points) {
+  return bank.rules.grades.find((g) => points >= g.min);
+}
+
+function titleOf(grade) {
+  return grade.titleChoices && game.honor ? game.honor : grade.title;
+}
+
+function renderProgress() {
+  const n = bank.rules.questionsPerGame;
+  $("progress").innerHTML = Array.from({ length: n }, (_, i) => {
+    const h = game.history[i];
+    if (h) return `<span class="r-${view(h.grade).cls}"></span>`;
+    return `<span class="${i === game.history.length ? "now" : ""}"></span>`;
+  }).join("");
+}
+
+function showQuestion() {
+  const q = pickQuestion(game.level);
+  game.current = q;
+  game.used.add(q.id);
+  $("q-count").textContent = `第 ${game.history.length + 1} 問 / ${bank.rules.questionsPerGame}`;
+  $("q-stars").innerHTML = stars(q.level);
+  $("q-text").textContent = q.question;
+  const note = q.open
+    ? "正解のない問題です。どの答えを選ぶかではなく、根拠を挙げて筋道立てて考えているかで評価します。"
+    : q.written ? "正解は一つではありません。理由や背景を、自分の言葉で説明してください。" : "";
+  $("q-note").textContent = note;
+  $("q-note").classList.toggle("hidden", !note);
+  const ta = $("answer");
+  ta.value = "";
+  ta.rows = q.written ? 6 : 2;
+  ta.disabled = false;
+  $("answer-actions").classList.remove("hidden");
+  $("feedback").classList.add("hidden");
+  $("q-error").classList.add("hidden");
+  renderProgress();
+  ta.focus();
+}
+
+async function submit(answer) {
+  const q = game.current;
+  $("submit-btn").disabled = $("skip-btn").disabled = true;
+  $("answer").disabled = true;
+  $("submit-btn").textContent = "採点中…";
+  try {
+    const res = await fetch("/api/grade", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ gameId: game.id, id: q.id, answer }),
+    });
+    const g = await res.json();
+    if (!res.ok) throw new Error(g.error || res.statusText);
+    game.history.push({ q, answer, grade: g });
+    game.points += g.points;
+    showFeedback(g);
+  } catch (e) {
+    $("q-error").textContent = `${e.message}。もう一度「答える」を押してください。`;
+    $("q-error").classList.remove("hidden");
+    $("answer").disabled = false;
+  } finally {
+    $("submit-btn").disabled = $("skip-btn").disabled = false;
+    $("submit-btn").textContent = "答える";
+  }
+}
+
+function showFeedback(g) {
+  const v = view(g);
+  $("fb-mark").textContent = v.mark;
+  $("fb-mark").className = `mark ${v.cls}`;
+  $("fb-label").textContent = v.label;
+  $("fb-label").className = v.cls;
+  $("fb-sub").textContent = `+${g.points % 1 ? g.points.toFixed(1) : g.points} 点`;
+  $("fb-explain").textContent = g.explanation;
+  const step = move(g);
+  const before = game.level;
+  game.level = Math.min(bank.rules.maxLevel, Math.max(bank.rules.minLevel, game.level + step));
+  const last = game.history.length >= bank.rules.questionsPerGame;
+  $("fb-next").textContent = last ? ""
+    : game.level > before ? "次は難しくなります。"
+    : game.level < before ? "次は易しくなります。"
+    : step > 0 ? "最高難度のまま続きます。" : "次も同じ難しさです。";
+  $("next-btn").textContent = last ? "判定を見る" : "次の問題へ";
+  $("answer-actions").classList.add("hidden");
+  $("feedback").classList.remove("hidden");
+  renderProgress();
+  $("next-btn").focus();
+}
+
+function renderDistribution(grade, stats) {
+  const { counts, total, above, below } = stats;
+  const peak = Math.max(1, ...Object.values(counts));
+  const topPct = Math.max(1, Math.round(((above + 1) / total) * 100));
+  const bottomPct = Math.max(1, Math.round(((below + 1) / total) * 100));
+  const rank = topPct <= 50 ? `上位 ${topPct}%` : `下位 ${bottomPct}%`;
+  const caption = total <= 1
+    ? "あなたが最初の挑戦者です。"
+    : `これまで <b>${total}</b> 人が挑戦。あなたは <b>${rank}</b> です。`;
+  const rows = bank.rules.grades.map((g) => {
+    const n = counts[g.grade] || 0;
+    const pct = total ? Math.round((n / total) * 100) : 0;
+    return `<div class="bar-row ${g.grade === grade.grade ? "me" : ""}">
+      <span class="g">${g.grade}</span>
+      <div><div class="track"><div class="fill" style="width:${(n / peak) * 100}%"></div></div>
+        <span class="title">${esc(titleOf(g))}・${g.min} 点〜</span></div>
+      <span class="n">${n} 人 (${pct}%)</span>
+    </div>`;
+  }).join("");
+  $("r-dist").innerHTML = `<p class="dist-caption">${caption}</p>${rows}`;
+}
+
+async function showResult() {
+  $("next-btn").disabled = true;
+  let finished = null;
+  try {
+    const res = await fetch("/api/finish", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ gameId: game.id }),
+    });
+    finished = await res.json();
+    if (!res.ok) throw new Error(finished.error || res.statusText);
+  } catch (e) {
+    finished = null;
+  } finally {
+    $("next-btn").disabled = false;
+  }
+  // The server's total is the recorded one; fall back to ours if it could not be reached.
+  const points = finished ? finished.points : game.points;
+  const grade = gradeFor(points);
+  const max = 3 + 4 + 5 * (bank.rules.questionsPerGame - 2);
+  $("r-grade").textContent = grade.grade;
+  $("r-title").textContent = titleOf(grade);
+  $("r-score").textContent = `${points % 1 ? points.toFixed(1) : points} 点（最高 ${max} 点）`;
+  if (finished) renderDistribution(grade, finished.stats);
+  else $("r-dist").innerHTML = `<p class="dist-caption">みんなの結果を読み込めませんでした。</p>`;
+  $("r-review").innerHTML = game.history.map((h, i) => {
+    const v = view(h.grade);
+    return `<li>
+      <div class="row"><span>第 ${i + 1} 問</span><span class="stars">${stars(h.q.level)}</span><span class="${v.cls}">${v.mark} ${esc(v.label)}</span></div>
+      <div class="q">${esc(h.q.question)}</div>
+      <div class="yours">あなたの答え：${esc(h.answer || "（わからない）")}</div>
+      <p class="ex">${esc(h.grade.explanation)}</p>
+    </li>`;
+  }).join("");
+  $("quiz").classList.add("hidden");
+  $("result").classList.remove("hidden");
+  window.scrollTo({ top: 0 });
+}
+
+async function startGame() {
+  $("start-btn").disabled = true;
+  let id;
+  try {
+    const res = await fetch(`/api/start${QUIZ_QS}`, { method: "POST" });
+    if (!res.ok) throw new Error(res.statusText);
+    id = (await res.json()).gameId;
+  } catch (e) {
+    $("start-error").textContent = "始められませんでした。時間をおいてもう一度試してください。";
+    $("start-error").classList.remove("hidden");
+    return;
+  } finally {
+    $("start-btn").disabled = false;
+  }
+  $("start-error").classList.add("hidden");
+  game = {
+    id,
+    level: bank.rules.startLevel,
+    used: new Set(),
+    history: [],
+    points: 0,
+    honor: document.querySelector("input[name=honor]:checked")?.value || "",
+  };
+  $("start").classList.add("hidden");
+  $("result").classList.add("hidden");
+  $("quiz").classList.remove("hidden");
+  showQuestion();
+}
+
+$("start-btn").onclick = startGame;
+$("again-btn").onclick = () => { $("result").classList.add("hidden"); $("start").classList.remove("hidden"); };
+$("submit-btn").onclick = () => submit($("answer").value.trim());
+$("skip-btn").onclick = () => submit("");
+$("next-btn").onclick = () => game.history.length >= bank.rules.questionsPerGame ? showResult() : showQuestion();
+$("answer").addEventListener("keydown", (e) => {
+  if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) { e.preventDefault(); $("submit-btn").click(); }
+});
+
+// ?quiz=<id> picks a quiz from quizzes/; without it the server's default is used.
+const QUIZ_ID = new URLSearchParams(location.search).get("quiz");
+const QUIZ_QS = QUIZ_ID ? `?quiz=${encodeURIComponent(QUIZ_ID)}` : "";
+
+function renderIntro(meta, rules) {
+  document.title = meta.title || "MulmoDecision";
+  $("seal").innerHTML = (meta.seal || [meta.title || ""]).map(esc).join("<br>");
+  $("quiz-title").textContent = meta.title || "";
+  $("quiz-subtitle").textContent = meta.subtitle || "";
+  $("intro-heading").textContent = meta.introHeading || "";
+  $("intro").textContent = meta.intro || "";
+  $("rules").innerHTML = (meta.rules || []).map((r) => `<li>${esc(r)}</li>`).join("");
+  // A grade with titleChoices (e.g. 歴女 / 歴男) lets the player pick how that title reads.
+  const top = rules.grades.find((g) => g.titleChoices);
+  if (top) {
+    $("honor-legend").textContent = meta.titleChoicePrompt || `${top.grade} の称号の呼び方`;
+    $("honor-chips").innerHTML = [...top.titleChoices, ""].map((v) =>
+      `<label><input type="radio" name="honor" value="${esc(v)}" ${v ? "" : "checked"}><span>${v ? esc(v) : "指定しない"}</span></label>`
+    ).join("");
+    $("honor-field").classList.remove("hidden");
+  }
+}
+
+fetch(`/api/quiz${QUIZ_QS}`)
+  .then((r) => { if (!r.ok) throw new Error(r.statusText); return r.json(); })
+  .then((b) => {
+    bank = b;
+    renderIntro(b.meta || {}, b.rules);
+    $("start-btn").disabled = false;
+    $("start-btn").textContent = "始める";
+  })
+  .catch(() => {
+    $("start-error").textContent = QUIZ_ID
+      ? `クイズ「${QUIZ_ID}」が見つかりませんでした。`
+      : "問題を読み込めませんでした。";
+    $("start-error").classList.remove("hidden");
+  });
+</script>
+</body>
+</html>

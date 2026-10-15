@@ -1,0 +1,29 @@
+{
+  "name": "mulmodecision",
+  "version": "0.1.0",
+  "description": "Free-answer quizzes graded by a decision model (TypeSafe JEV), on Cloudflare Workers + D1",
+  "private": true,
+  "type": "module",
+  "license": "MIT",
+  "scripts": {
+    "setup": "node scripts/setup.mjs",
+    "dev": "wrangler dev",
+    "test": "node scripts/test-api.mjs",
+    "test:grading": "node scripts/test-grading.ts",
+    "typecheck": "node scripts/gen-quizzes.mjs && wrangler types && tsc --noEmit",
+    "setup:cloudflare": "node scripts/setup.mjs --remote",
+    "deploy": "wrangler deploy"
+  },
+  "engines": {
+    "node": ">=22.18"
+  },
+  "devDependencies": {
+    "@types/node": "^24.19.2",
+    "typescript": "^5.9.3",
+    "wrangler": "^4.151.0"
+  },
+  "allowScripts": {
+    "esbuild@0.28.2": true,
+    "workerd@1.20261012.1": true
+  }
+}

@@ -1,0 +1,23 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "mulmodecision",
+  "main": "src/index.ts",
+  "compatibility_date": "2026-09-01",
+  // Bundles quizzes/*.json into the Worker before every `wrangler dev` / `wrangler deploy`.
+  "build": { "command": "node scripts/gen-quizzes.mjs", "watch_dir": ["quizzes", "src"] },
+  "assets": { "directory": "public" },
+  "vars": {
+    // The quiz shown at "/". Any other quiz is reachable at /?quiz=<file name without .json>.
+    "QUIZ": "sengoku",
+    "JEV_MODEL": "jev-latest"
+  },
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "mulmodecision",
+      // Filled in by `npm run setup:cloudflare`. Any value works for local development.
+      "database_id": "00000000-0000-0000-0000-000000000000"
+    }
+  ]
+  // Secret (never in this file): TYPESAFE_API_KEY, uploaded from .env by `npm run setup:cloudflare`.
+}

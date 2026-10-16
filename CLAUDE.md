@@ -87,7 +87,8 @@ deploy, so a bad file fails the build, not a game. Consequences:
   Keep its patterns to explicit requests to pick; a regex will still misread some mention, which
   costs one `ignoreWording` call rather than a pattern for every phrasing.
 - `explanation` defaults to "" (reported by authoringIssues, so the samples still need one); the
-  chat plugin moves one written inside `jev` up (`repairExplanations`), its only repair.
+  chat plugin takes one written inside `jev` out and uses it when the question's own is missing
+  or blank (`repairExplanations`), its only repair.
 - `rules.credit` is optional; the schema's default (and `withDefaultCredit` in `src/game.ts`, which
   the Worker applies to the bundled quizzes) is Choice correct/close/wrong, Score [0, 0, 0.5, 1].
 

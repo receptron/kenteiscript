@@ -47,17 +47,18 @@ export function kenteiJsonSchema(): Record<string, unknown> {
 
 /**
  * The one slip LLMs make often enough to forgive: `explanation` written inside `jev` rather than
- * beside it. Moved up when the question has none of its own; anything else stays for the schema
- * to report. Returns a copy; the input is not changed.
+ * beside it. It is taken out of `jev` and used when the question's own is missing or blank (else
+ * the question's own wins). Anything else stays for the schema to report. Returns a copy.
  */
 function repairExplanations(data: unknown): unknown {
   if (!isRecord(data) || !Array.isArray(data.questions)) return data;
   return {
     ...data,
     questions: data.questions.map((q) => {
-      if (!isRecord(q) || q.explanation !== undefined || !isRecord(q.jev) || typeof q.jev.explanation !== "string") return q;
-      const { explanation, ...jev } = q.jev;
-      return { ...q, jev, explanation };
+      if (!isRecord(q) || !isRecord(q.jev) || typeof q.jev.explanation !== "string") return q;
+      const { explanation: nested, ...jev } = q.jev;
+      const hasOwn = typeof q.explanation === "string" && q.explanation.trim() !== "";
+      return { ...q, jev, explanation: hasOwn ? q.explanation : nested };
     }),
   };
 }

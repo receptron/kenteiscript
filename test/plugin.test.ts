@@ -287,6 +287,13 @@ test("explanation: inside jev is moved beside it; a missing one is reported, not
   assert.equal(moved.data.script.questions[3]!.explanation, SAMPLE_SCRIPT.questions[3]!.explanation);
   assert.equal("explanation" in moved.data.script.questions[3]!.jev, false);
   assert.ok("explanation" in slipped.questions[3].jev, "the caller's object is not changed");
+  const blank = clone(slipped);
+  blank.questions[3].explanation = "  ";
+  assert.equal((await present(blank)).data?.script.questions[3]!.explanation, SAMPLE_SCRIPT.questions[3]!.explanation);
+  const both = clone(SAMPLE_SCRIPT) as Record<string, any>;
+  both.questions[3].jev.explanation = "a duplicate";
+  const kept = await present(both);
+  assert.equal(kept.data?.script.questions[3]!.explanation, SAMPLE_SCRIPT.questions[3]!.explanation, "the question's own wins");
 
   const missing = clone(SAMPLE_SCRIPT) as Record<string, any>;
   delete missing.questions[3].explanation;

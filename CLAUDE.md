@@ -96,6 +96,8 @@ deploy, so a bad file fails the build, not a game. Consequences:
 ## Run after changes
 
 - `yarn format` — Prettier over the whole repo (`.prettierrc.json`); CI runs `yarn format:check`.
+- `yarn lint` — ESLint (`eslint.config.js`). Not gated in CI yet: the existing violations have no
+  recorded baseline, so keep new code clean rather than expecting a green run.
 - `yarn typecheck` — regenerates `src/quizzes.gen.ts`, `public/game.js` and the Worker types,
   then runs `tsc` (Worker, scripts, tests) and `vue-tsc -p tsconfig.plugin.json` (the plugin,
   with stricter flags).

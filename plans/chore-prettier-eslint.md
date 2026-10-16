@@ -20,4 +20,9 @@ dependabot, the Codex review workflow, and a win/mac CI matrix.
 - ESLint flat config from ever-better (typescript-eslint strictTypeChecked + stylistic, sonarjs,
   security, vue, prettier), `lint` script.
 - gitleaks secret-scan workflow.
+- The generated config uses the project service, which finds only `tsconfig.json`; the plugin's
+  `.vue` files live in `tsconfig.plugin.json`. It lists both tsconfigs instead, and turns the
+  type-aware rules off for `.js` / `.mjs` / `*.config.ts`, which no tsconfig covers.
+- Generated, git-ignored files (`src/quizzes.gen.ts`, `public/game.js`,
+  `worker-configuration.d.ts`) are ignored, not linted.
 - Lint is not gated in CI yet: without a frozen baseline every existing violation would fail it.

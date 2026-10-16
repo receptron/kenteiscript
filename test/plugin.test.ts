@@ -325,7 +325,7 @@ test("questions that promise options, and a start screen that talks about Choice
     "There are no multiple-choice questions; type each answer.",
   ];
   fine.questions[0]!.question = "写真を「猫」「犬」のどれかに分けるタスクを何という？ どれが正しいかを判断するとき、何を確かめる？";
-  fine.questions[1]!.question = "家康が江戸を選んで本拠にした理由は？ 利用者が配送方法を選べます。選べません、の場合は？";
+  fine.questions[1]!.question = "家康が江戸を選んで本拠にした理由は？ 利用者が配送方法を選べます。選択肢を選んで答える方式の欠点は？";
   fine.questions[2]!.question = "Explain why a neural network might choose the wrong class. Choose a renewable energy source and explain how it generates electricity.";
   fine.questions[3]!.question = "SELECT COUNT(*) FROM users; このSQLは何を返しますか？ 「次のうち」を英語に訳すと？ Translate \"Which of the following\" into Japanese.";
   const fineShown = await present(fine);

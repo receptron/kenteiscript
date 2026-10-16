@@ -32,7 +32,12 @@ for (const file of files) {
   const { questions } = quiz;
 
   // The authoring rules (src/authoring.ts): injection guard, questions per level, reachable grades.
-  for (const issue of authoringIssues(quiz, { minPerLevel: MIN_PER_LEVEL })) fail(`${id} ${issue.where}`, issue.message);
+  // The wording heuristic (overridable) only warns: a human reviews a sample quiz, and a regex
+  // can misread a question that needs no options.
+  for (const issue of authoringIssues(quiz, { minPerLevel: MIN_PER_LEVEL })) {
+    if (issue.overridable) console.log(`warn ${id} ${issue.where}: ${issue.message}`);
+    else fail(`${id} ${issue.where}`, issue.message);
+  }
   const perLevel = {};
   for (const q of questions) perLevel[q.level] = (perLevel[q.level] || 0) + 1;
 

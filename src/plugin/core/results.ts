@@ -29,12 +29,19 @@ export function resultsMessage(script: KenteiScript, state: PlayState): string {
     return [`**${name} — result: ${grade.grade} 「${oneLine(title)}」 (${formatPoints(points)} / ${max} points)**`, "", ...lines].join("\n");
   }
   const some = state.history.some((h) => h.grade);
+  // The player's pick of how a title reads (e.g. 歴女 / 歴男), for the LLM to use when it gives the grade.
+  const choices = script.rules.grades.filter((g) => g.titleChoices);
+  const picked =
+    state.titleChoice && choices.some((g) => g.titleChoices!.includes(state.titleChoice!))
+      ? [`The player picked the title reading 「${oneLine(state.titleChoice)}」 for ${choices.map((g) => g.grade).join(", ")}: use it if they earn that grade.`, ""]
+      : [];
   return [
     `**${name} — answers to grade${some ? " (partly graded by JEV)" : ""}**`,
     "",
     "Grade each answer marked \"not graded\" against the criteria of that question in the KenteiScript (ids in brackets) and rules.credit, " +
       "then total level × credit over all answers and give the grade and title from rules.grades. Explain each grade briefly.",
     "",
+    ...picked,
     ...lines,
   ].join("\n");
 }

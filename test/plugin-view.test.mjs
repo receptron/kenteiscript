@@ -277,3 +277,58 @@ test("sendTextMessage returning false (no terminal took it) leaves the results u
   assert.equal(current.viewState.sent, true);
   app.unmount();
 });
+
+test("unmounting while a grade is pending stops everything: no timer restart, no second paid grade", async () => {
+  const script = structuredClone(SAMPLE_SCRIPT);
+  script.rules.timeLimitPerQuestion = 1;
+  let reject;
+  let calls = 0;
+  const runtime = {
+    dispatch() {
+      calls++;
+      return new Promise((_, r) => (reject = r));
+    },
+  };
+  const v = await mount({ grading: "jev", runtime, script });
+  await v.click("kentei-start-button");
+  await v.type("酸素");
+  await v.click("kentei-submit");
+  assert.equal(calls, 1);
+  v.app.unmount();
+  reject(new Error("network"));
+  await new Promise((r) => setTimeout(r, 1500)); // longer than the 1-second limit
+  await flush();
+  assert.equal(calls, 1, "a closed View sends no more grading requests");
+});
+
+test("a saved JEV game reopened in a host that cannot grade continues in the LLM fallback", async () => {
+  const runtime = { dispatch: async (args, parse) => parse({ type: "Choice", result: "correct", probabilities: { correct: 0.9 }, credit: 1, points: 2 }) };
+  const v = await mount({ grading: "jev", runtime });
+  await v.click("kentei-start-button");
+  await v.type("酸素");
+  await v.click("kentei-submit");
+  await v.click("kentei-next");
+  const saved = v.updates.at(-1);
+  assert.equal(saved.viewState.mode, "jev");
+  v.app.unmount();
+
+  // Same result, no runtime this time (e.g. another host, or one without the plugin runtime).
+  const el = document.createElement("div");
+  document.body.appendChild(el);
+  let current = saved;
+  const sent = [];
+  const app = createApp({ render: () => h(plugin.viewComponent, { selectedResult: current, sendTextMessage: (t) => sent.push(t), onUpdateResult: (r) => (current = r) }) });
+  app.mount(el);
+  await flush();
+  const $ = (id) => el.querySelector(`[data-testid="${id}"]`);
+  const click = async (id) => {
+    $(id).dispatchEvent(new dom.window.MouseEvent("click", { bubbles: true }));
+    await flush();
+  };
+  await click("kentei-submit");
+  assert.match($("kentei-feedback").textContent, /記録しました/);
+  assert.equal(current.viewState.mode, "llm", "the restored game is downgraded");
+  assert.equal(current.viewState.history.length, 2, "history is kept");
+  assert.ok(current.viewState.history[0].grade, "the JEV grade already given is kept");
+  app.unmount();
+});

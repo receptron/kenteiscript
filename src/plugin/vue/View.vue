@@ -183,7 +183,10 @@ function load(result: ToolResult): void {
   const s = result.data.script;
   const mode: GradingMode = result.data.grading === "jev" && runtime ? "jev" : "llm";
   script.value = s;
-  state.value = toPlayState(result.viewState, s) ?? initialState(s, mode);
+  const restored = toPlayState(result.viewState, s);
+  // A game saved where JEV could grade, reopened where it cannot (no key, no runtime): keep its
+  // history and grades, and go on in the LLM fallback (script order, answers sent ungraded).
+  state.value = restored ? { ...restored, mode: restored.mode === "jev" && mode === "llm" ? "llm" : restored.mode } : initialState(s, mode);
   error.value = "";
   grading.value = false;
   sendFailed.value = false;
@@ -244,6 +247,7 @@ function stopTimer(): number {
 
 function startTimer(ms: number): void {
   stopTimer();
+  if (unmounted) return;
   const deadline = Date.now() + ms;
   const update = () => {
     const left = deadline - Date.now();
@@ -271,7 +275,12 @@ watch(
   { immediate: true },
 );
 
+// A closed View must not act any more: invalidate a pending grade (its handlers then neither
+// restart the timer nor submit again) and stop the countdown.
+let unmounted = false;
 onBeforeUnmount(() => {
+  unmounted = true;
+  generation++;
   stopTimer();
 });
 

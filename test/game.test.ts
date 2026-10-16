@@ -88,15 +88,14 @@ test("gradeFor, titleOf, maxPoints", () => {
 
 const levels = (...ls: number[]) => ls.map((level) => ({ level, written: false }));
 
-test("maxPoints replays an all-correct game with the script's own questions", () => {
+test("maxPoints replays an all-best-answers game with the script's own questions", () => {
   // Enough questions at every level: the level climbs 3, 4, 5, 5, …
   assert.equal(game.maxPoints(rules, levels(...Array(10).fill(3), ...Array(10).fill(4), ...Array(10).fill(5))), 47);
   // The ★5s run out after two: the rest come from ★4, the nearest level left.
   assert.equal(game.maxPoints(rules, levels(...Array(10).fill(3), ...Array(10).fill(4), 5, 5)), 3 + 4 + 5 + 5 + 4 * 6);
   // Fewer questions than questionsPerGame: the game ends when they run out.
   assert.equal(game.maxPoints(rules, levels(3, 4)), 7);
-  // A tie (★2 and ★4 equally near ★3): both branches are tried. With two questions both orders
-  // give 6; with one, the better branch (★4) is kept.
+  // A tie (★2 and ★4 equally near ★3): the higher level is asked first.
   const tie = { questionsPerGame: 2, startLevel: 3, minLevel: 1, maxLevel: 3, credit: usualCredit };
   assert.equal(game.maxPoints(tie, levels(2, 4)), 6);
   assert.equal(game.maxPoints({ ...tie, questionsPerGame: 1 }, levels(2, 4)), 4);
@@ -115,6 +114,16 @@ test("maxPoints uses the best credit rules.credit allows, and the level move tha
   const ladder = { questionsPerGame: 5, startLevel: 2, minLevel: 1, maxLevel: 3, credit: { Choice: { correct: 1, wrong: 0 }, Score: [0, 0.25, 0.75] } };
   const written = (...ls: number[]) => ls.map((level) => ({ level, written: true }));
   assert.equal(game.maxPoints(ladder, written(1, 2, 2, 2, 2, 2, 3, 3)), 7.5);
+});
+
+test("maxPoints is fast: 300 questions, 50 per game, well under 100 ms", () => {
+  const big = { questionsPerGame: 50, startLevel: 3, minLevel: 1, maxLevel: 5, credit: usualCredit };
+  const qs = Array.from({ length: 300 }, (_, i) => (i % 2 ? { level: (i % 5) + 1, written: true } : { level: (i % 5) + 1, jev: { type: "Choice" as const } }));
+  const t = performance.now();
+  const points = game.maxPoints(big, qs);
+  const ms = performance.now() - t;
+  assert.equal(points, 3 + 4 + 5 * 48);
+  assert.ok(ms < 100, `${ms.toFixed(1)} ms`);
 });
 
 // The result screen used to show 3 + 4 + 5 × (n − 2). For the real quizzes nothing changes but

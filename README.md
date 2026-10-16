@@ -146,9 +146,10 @@ definition, with a comment on every field.
 - A full-credit answer (credit 1: `correct`, or the top Score level) moves the next question
   **up** a level; at least half credit (`close`, or level 2) keeps the level; anything less moves
   it **down**. When a level has no unused question left, the next one comes from the nearest level
-  that has one. The maximum shown with the result is the best a game can score with the script's
-  actual questions and credits (`maxPoints` in `src/game.ts`), so it accounts for levels running
-  out and for a script whose best credit is below 1.
+  that has one. The maximum shown with the result is the points of an all-best-answers game with
+  the script's actual questions and credits (`maxPoints` in `src/game.ts`: a fast deterministic
+  replay, ties going to the higher level), so it accounts for levels running out and for a script
+  whose best credit is below 1. For the sample quizzes it is the true maximum.
 - With `timeLimitPerQuestion`, each question has that many seconds. The view keeps the time, not
   the server: it shows the time left (and the limit on the start screen), and when time is up it
   submits what is in the answer box, as if the player had pressed 答える (an empty box is no

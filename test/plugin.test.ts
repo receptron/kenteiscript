@@ -19,6 +19,7 @@ import factory, {
   summary,
   toPlayState,
   type AnswerGrade,
+  type PlayState,
   type KenteiData,
 } from "../src/plugin/server.ts";
 
@@ -72,7 +73,7 @@ test("maxPoints of the sample script follows its question pool, and its grades a
   assert.doesNotMatch(r.message, /cannot be earned/);
   const greedy = clone(SAMPLE_SCRIPT);
   greedy.rules.grades[0]!.min = 9;
-  assert.match((await executeKentei({}, greedy)).message, /at most 8 points, so grade A cannot be earned/);
+  assert.match((await executeKentei({}, greedy)).message, /best answer every time reaches 8 points, so grade A cannot be earned/);
 });
 
 test("execute: an invalid KenteiScript returns every schema error and no data", async () => {
@@ -221,4 +222,16 @@ test("viewState round-trips through JSON and drops what does not fit the script"
   const odd = toPlayState({ ...saved, level: 99, history: [...saved.history, { id: "gone", answer: "x" }, saved.history[0]] }, script);
   assert.equal(odd?.level, script.rules.startLevel);
   assert.equal(odd?.history.length, 1);
+});
+
+test("the ungraded results tell the LLM which title reading the player picked", () => {
+  const script = clone(SAMPLE_SCRIPT);
+  script.rules.grades[0] = { ...script.rules.grades[0]!, titleChoices: ["光合成博士", "光合成名人"] };
+  let s: PlayState = { ...initialState(script, "llm"), titleChoice: "光合成名人" };
+  s = advance(script, s);
+  s = recordAnswer(script, s, "葉緑体");
+  const msg = resultsMessage(script, s);
+  assert.match(msg, /title reading.*「光合成名人」/);
+  // Without titleChoices in the script, nothing is said.
+  assert.doesNotMatch(resultsMessage(clone(SAMPLE_SCRIPT), { ...s, titleChoice: null }), /title reading/);
 });

@@ -32,7 +32,9 @@ const OFFERS_OPTIONS = /[0-9０-９一二三四五六]択|選択肢|multiple[- ]
 const DENIES = /ません|ない|なし|なく|ず(?:に|$)|\b(no|not|never|without|none)\b|n't/i;
 const GRADING_TERMS = /(?<![-\w])(Choice|Score) ?(問題|questions?\b)/;
 
-const asksToPick = (question: string) => ASKS_TO_PICK.some((re) => re.test(question));
+// Quoted text is mentioned, not asked: 「「次のうち」を英語に訳して」, 'Translate "Which of the following"'.
+const unquoted = (text: string) => text.replace(/「[^」]*」|『[^』]*』|"[^"]*"|“[^”]*”|(?<![A-Za-z])'[^']*'(?![A-Za-z])/g, " ");
+const asksToPick = (question: string) => ASKS_TO_PICK.some((re) => re.test(unquoted(question)));
 // Judged clause by clause, so a denial counts only next to the options it denies: 「全問4択で、
 // 時間制限はありません」 still promises options.
 const promisesOptions = (line: string) =>

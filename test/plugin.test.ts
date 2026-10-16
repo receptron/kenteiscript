@@ -327,14 +327,14 @@ test("questions that promise options, and a start screen that talks about Choice
   fine.questions[0]!.question = "写真を「猫」「犬」のどれかに分けるタスクを何という？";
   fine.questions[1]!.question = "家康が江戸を選んで本拠にした理由は？ 利用者が配送方法を選べます。選べません、の場合は？";
   fine.questions[2]!.question = "Explain why a neural network might choose the wrong class.";
-  fine.questions[3]!.question = "SELECT COUNT(*) FROM users; このSQLは何を返しますか？";
+  fine.questions[3]!.question = "SELECT COUNT(*) FROM users; このSQLは何を返しますか？ 「次のうち」を英語に訳すと？ Translate \"Which of the following\" into Japanese.";
   const fineShown = await present(fine);
   assert.ok(fineShown.data, fineShown.message);
   assert.doesNotMatch(fineShown.message, /Not fixed/);
   const imperative = clone(SAMPLE_SCRIPT);
   imperative.questions[0]!.question = "Choose the correct past tense: 'She ___ to school yesterday.'";
   imperative.questions[1]!.question = "最も近い説明を一つ選べ。";
-  imperative.questions[2]!.question = "Fill in the blank. Select the right word: 'I ___ tired.'";
+  imperative.questions[2]!.question = "Don't guess. Which of the following isn't prime?";
   const refused = await present(imperative);
   assert.equal(refused.data, undefined);
   assert.equal((refused.message.match(/the question asks the player to pick from options/g) ?? []).length, 3);

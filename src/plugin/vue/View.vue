@@ -24,8 +24,9 @@
             <span>{{ choice || "指定しない" }}</span>
           </label>
         </fieldset>
-        <p class="grader">{{ state.mode === "jev" ? "答えは一問ごとに判定モデル（JEV）が採点します。" : "答えは最後にまとめて AI が採点します。" }}</p>
-        <button type="button" class="primary" data-testid="kentei-start-button" @click="start">始める</button>
+        <p class="grader">答えは一問ごとに判定モデル（JEV）が採点します。</p>
+        <p v-if="!runtime" class="error" role="alert" data-testid="kentei-no-grading">{{ NO_RUNTIME_ERROR }}</p>
+        <button type="button" class="primary" data-testid="kentei-start-button" :disabled="!runtime" @click="start">始める</button>
       </section>
 
       <section v-else-if="state.phase !== 'done' && current" class="card" data-testid="kentei-question">
@@ -53,10 +54,7 @@
             @keydown.enter.meta.prevent="submit(state.draft)"
             @keydown.enter.ctrl.prevent="submit(state.draft)"
           />
-          <p v-if="error" class="error" role="alert">
-            {{ error }}
-            <button type="button" class="link" @click="continueUngraded">採点せずに続ける</button>
-          </p>
+          <p v-if="error" class="error" role="alert" data-testid="kentei-error">{{ error }}</p>
           <div class="actions">
             <button type="button" class="secondary" :disabled="grading || timedOut" @click="submit('')">わからない</button>
             <button type="button" class="primary" :disabled="grading" data-testid="kentei-submit" @click="submit(state.draft)">
@@ -66,14 +64,11 @@
         </template>
 
         <div v-else class="feedback" data-testid="kentei-feedback">
-          <template v-if="lastRecord?.grade">
-            <div class="verdict" :class="lastView.cls">
-              <span class="mark">{{ lastView.mark }}</span>
-              <span>{{ lastView.label }}</span>
-              <span class="sub">+{{ formatPoints(lastRecord.grade.points) }} 点</span>
-            </div>
-          </template>
-          <p v-else class="verdict plain">答えを記録しました。採点は最後に AI がまとめて行います。</p>
+          <div v-if="lastRecord" class="verdict" :class="lastView.cls">
+            <span class="mark">{{ lastView.mark }}</span>
+            <span>{{ lastView.label }}</span>
+            <span class="sub">+{{ formatPoints(lastRecord.grade.points) }} 点</span>
+          </div>
           <p class="explain">{{ current.explanation }}</p>
           <p v-if="nextNote" class="next-note">{{ nextNote }}</p>
           <div class="actions">
@@ -83,13 +78,10 @@
       </section>
 
       <section v-else-if="state.phase === 'done'" class="card" data-testid="kentei-result">
-        <template v-if="totals.graded">
-          <p class="r-label">判定</p>
-          <p class="r-grade">{{ totals.grade.grade }}</p>
-          <p class="r-title">{{ totals.title }}</p>
-          <p class="r-score">{{ formatPoints(totals.points) }} 点（最高 {{ totals.max }} 点）</p>
-        </template>
-        <p v-else class="r-title">おつかれさまでした。採点は AI がこのあと行います。</p>
+        <p class="r-label">判定</p>
+        <p class="r-grade">{{ totals.grade.grade }}</p>
+        <p class="r-title">{{ totals.title }}</p>
+        <p class="r-score">{{ formatPoints(totals.points) }} 点（最高 {{ totals.max }} 点）</p>
         <p class="sent" data-testid="kentei-sent">{{ state.sent ? "結果をチャットに送りました。" : "" }}</p>
         <p v-if="sendFailed && !state.sent" class="error" role="alert" data-testid="kentei-send-failed">
           結果をチャットに送れませんでした。送り先を開いてから、もう一度「結果をチャットに送る」を押してください。
@@ -100,7 +92,7 @@
             <div class="row">
               <span>第 {{ i + 1 }} 問</span>
               <span class="stars">{{ "★".repeat(questionById(script, h.id)?.level ?? 0) }}</span>
-              <span v-if="h.grade" :class="viewOf(h.grade, questionById(script, h.id)).cls">
+              <span :class="viewOf(h.grade, questionById(script, h.id)).cls">
                 {{ viewOf(h.grade, questionById(script, h.id)).mark }} {{ viewOf(h.grade, questionById(script, h.id)).label }}
               </span>
             </div>
@@ -126,7 +118,7 @@ import type { ToolResult } from "gui-chat-protocol";
 import { PLUGIN_RUNTIME_KEY } from "gui-chat-protocol/vue";
 import type { KenteiScript, Question } from "../../kentei-script.ts";
 import { formatPoints, levelStep } from "../../game.ts";
-import type { AnswerGrade, GradingMode, KenteiData } from "../core/types.ts";
+import type { AnswerGrade, KenteiData } from "../core/types.ts";
 import { TOOL_NAME } from "../core/definition.ts";
 import {
   MAX_ANSWER_CHARS,
@@ -152,9 +144,9 @@ const emit = defineEmits<{
   updateResult: [result: ToolResult];
 }>();
 
-// The host's plugin runtime, when it provides one: its dispatch reaches the plugin's server part,
-// which grades with JEV. Injected rather than useRuntime(), which throws without a provider, so
-// the View still works (grading by the LLM) in a host that has not wired the runtime.
+// The host's plugin runtime: its dispatch reaches the plugin's server part, which grades with JEV.
+// Injected rather than useRuntime(), which throws without a provider, so that in a host that has
+// not wired the runtime the View can say it cannot grade (and not start) instead of failing to mount.
 const runtime = inject(PLUGIN_RUNTIME_KEY, null);
 // One radio group per View: with a fixed name, two quiz cards on one page would share a group, and
 // a choice in one would uncheck the other without updating its state. A module counter rather than
@@ -164,7 +156,6 @@ const titleRadioName = `kentei-title-${nextViewId()}`;
 const script = ref<KenteiScript | null>(null);
 const state = ref<PlayState>({
   phase: "start",
-  mode: "llm",
   level: 1,
   currentId: null,
   history: [],
@@ -173,6 +164,9 @@ const state = ref<PlayState>({
   sent: false,
 });
 const grading = ref(false);
+// Without JEV there is no game: the View says why and does not go on.
+const MISSING_KEY_ERROR = "採点の設定がありません（TYPESAFE_API_KEY）。ホストの環境に TYPESAFE_API_KEY を設定して、ホストを再起動してください。";
+const NO_RUNTIME_ERROR = "このチャットでは採点できません（プラグインのランタイムがありません）。";
 const error = ref("");
 /** The last attempt to send the results was not delivered (see sendResults). */
 const sendFailed = ref(false);
@@ -180,8 +174,6 @@ let restoring = false;
 // Bumped whenever a different game takes over the View (another result, a restart, unmount), so
 // a grading response that arrives afterwards is recognized as stale and dropped.
 let generation = 0;
-/** The answer whose grading failed, exactly as it was submitted; 採点せずに続ける records this one. */
-let failedAnswer: string | null = null;
 // Timer state (see the per-question time limit below). Declared here, with everything else the
 // setup-time watchers can reach: the immediate watchers run during setup, before later lines.
 const WARN_SECONDS = 10;
@@ -200,16 +192,11 @@ function load(result: ToolResult): void {
   restoring = true;
   generation++;
   const s = result.data.script;
-  const mode: GradingMode = result.data.grading === "jev" && runtime ? "jev" : "llm";
   script.value = s;
-  const restored = toPlayState(result.viewState, s);
-  // A game saved where JEV could grade, reopened where it cannot (no key, no runtime): keep its
-  // history and grades, and go on in the LLM fallback (script order, answers sent ungraded).
-  state.value = restored ? { ...restored, mode: restored.mode === "jev" && mode === "llm" ? "llm" : restored.mode } : initialState(s, mode);
+  state.value = toPlayState(result.viewState, s) ?? initialState(s);
   error.value = "";
   grading.value = false;
   sendFailed.value = false;
-  failedAnswer = null;
   restoring = false;
 }
 
@@ -331,14 +318,14 @@ const lastView = computed(() =>
 const dots = computed(() =>
   Array.from({ length: script.value?.rules.questionsPerGame ?? 0 }, (_, i) => {
     const h = state.value.history[i];
-    if (h) return h.grade ? `r-${viewOf(h.grade, undefined).cls}` : "r-plain";
+    if (h) return `r-${viewOf(h.grade, undefined).cls}`;
     return i === state.value.history.length ? "now" : "";
   }),
 );
 
 const nextNote = computed(() => {
   const g = lastRecord.value?.grade;
-  if (!g || last.value || state.value.mode !== "jev") return "";
+  if (!g || last.value) return "";
   // The same wording as the MulmoKentei page.
   const before = lastRecord.value?.level ?? state.value.level;
   if (state.value.level > before) return "次は難しくなります。";
@@ -347,7 +334,7 @@ const nextNote = computed(() => {
 });
 
 function start(): void {
-  if (!script.value) return;
+  if (!script.value || !runtime) return;
   generation++;
   state.value = advance(script.value, { ...state.value, phase: "start", history: [], level: script.value.rules.startLevel, sent: false });
 }
@@ -356,14 +343,15 @@ async function submit(raw: string): Promise<void> {
   const s = script.value;
   const q = current.value;
   if (!s || !q || grading.value || state.value.phase !== "question") return;
-  const answer = normalizeAnswer(raw);
-  error.value = "";
-  failedAnswer = null;
-  const left = stopTimer();
-  if (state.value.mode === "llm" || !runtime) {
-    state.value = recordAnswer(s, state.value, answer);
+  if (!runtime) {
+    // Not reachable from the UI (始める is disabled without a runtime), but a restored game could be
+    // on a question: it stays there, since nothing is recorded without a grade.
+    error.value = NO_RUNTIME_ERROR;
     return;
   }
+  const answer = normalizeAnswer(raw);
+  error.value = "";
+  const left = stopTimer();
   grading.value = true;
   // The game and question this answer belongs to. Anything may happen while JEV grades it (the
   // host selects another result, the View is reused for another game), so the response is applied
@@ -375,8 +363,10 @@ async function submit(raw: string): Promise<void> {
     if (stillAsked()) state.value = recordAnswer(s, state.value, answer, grade);
   } catch (e) {
     if (!stillAsked()) return;
-    failedAnswer = answer;
-    error.value = `採点できませんでした（${e instanceof Error ? e.message : String(e)}）。もう一度「答える」を押してください。`;
+    const message = e instanceof Error ? e.message : String(e);
+    // The server refused for want of a key (MISSING_KEY_MESSAGE): retrying cannot help, so say what is
+    // missing; any other failure (network, JEV) can be retried with 答える.
+    error.value = message.includes("TYPESAFE_API_KEY") ? MISSING_KEY_ERROR : `採点できませんでした（${message}）。もう一度「答える」を押してください。`;
     // After time is up the answer stays as it was sent; otherwise the countdown carries on.
     if (!timedOut.value && s.rules.timeLimitPerQuestion) startTimer(left);
   } finally {
@@ -393,15 +383,6 @@ function parseGrade(raw: unknown): AnswerGrade {
   return { type: g.type, result: g.result ?? "", probabilities: g.probabilities ?? {}, credit: g.credit, points: g.points };
 }
 
-// After a grading failure the player can go on without JEV; the remaining answers then go to the
-// LLM ungraded, in the script's order.
-function continueUngraded(): void {
-  const answer = failedAnswer ?? state.value.draft;
-  state.value = { ...state.value, mode: "llm" };
-  error.value = "";
-  void submit(answer);
-}
-
 function next(): void {
   if (!script.value) return;
   state.value = advance(script.value, state.value);
@@ -410,7 +391,7 @@ function next(): void {
 
 // Only an explicit false means the text was not delivered (MulmoTerminal, with no terminal to type
 // into); undefined is a void host such as MulmoClaude. Undelivered results stay unsent, so the
-// button stays and the player can send them again (graded or not).
+// button stays and the player can send them again.
 
 function sendResults(): void {
   if (!script.value || state.value.sent) return;
@@ -539,13 +520,6 @@ button:disabled {
   background: transparent;
   color: var(--ink-soft);
 }
-.link {
-  background: none;
-  border: 0;
-  padding: 0 4px;
-  color: var(--accent);
-  text-decoration: underline;
-}
 .progress {
   display: flex;
   gap: 6px;
@@ -568,9 +542,6 @@ button:disabled {
 }
 .progress .r-bad {
   background: var(--bad);
-}
-.progress .r-plain {
-  background: var(--ink);
 }
 .q-head {
   display: flex;
@@ -637,10 +608,6 @@ textarea {
   font-weight: 500;
   font-size: 14px;
   color: var(--ink-soft);
-}
-.verdict.plain {
-  font-size: 15px;
-  font-weight: 500;
 }
 .good {
   color: var(--good);

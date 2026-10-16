@@ -33,7 +33,7 @@ const status = computed(() => {
   if (!s || s.phase === "start") return `全 ${n} 問`;
   if (s.phase !== "done") return `${s.history.length} / ${n} 問`;
   const t = summary(d.script, s);
-  return t.graded ? `判定 ${t.grade.grade}（${formatPoints(t.points)} 点）` : "回答済み";
+  return `判定 ${t.grade.grade}（${formatPoints(t.points)} 点）`;
 });
 </script>
 

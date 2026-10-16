@@ -44,10 +44,50 @@ const fakeByPath = (files) => ({
   },
 });
 
+// Both hosts' server processes are where the key lives: the plugin reads TYPESAFE_API_KEY from it.
+async function withProcessKey(value, fn) {
+  const saved = process.env.TYPESAFE_API_KEY;
+  if (value === undefined) delete process.env.TYPESAFE_API_KEY;
+  else process.env.TYPESAFE_API_KEY = value;
+  try {
+    return await fn();
+  } finally {
+    if (saved === undefined) delete process.env.TYPESAFE_API_KEY;
+    else process.env.TYPESAFE_API_KEY = saved;
+  }
+}
+
+const load = async (file) => {
+  const path = join(dir, "dist", file);
+  return file.endsWith(".cjs") ? createRequire(path)(path) : await import(pathToFileURL(path).href);
+};
+
 for (const file of ["index.js", "index.cjs"]) {
-  test(`dist/${file} loads standalone, in the legacy shape both hosts give a context to`, async () => {
-    const path = join(dir, "dist", file);
-    const mod = file.endsWith(".cjs") ? createRequire(path)(path) : await import(pathToFileURL(path).href);
+  test(`dist/${file} standalone, with no TYPESAFE_API_KEY: every action fails with MISSING_KEY_MESSAGE and no data`, async () => {
+    const mod = await load(file);
+    assert.match(mod.MISSING_KEY_MESSAGE, /^manageKenteiScript is unavailable: this host has no TYPESAFE_API_KEY/);
+    const context = { files: { byPath: fakeByPath({ "quizzes/example.json": JSON.stringify(sample) }) } };
+    for (const key of [undefined, ""]) {
+      await withProcessKey(key, async () => {
+        for (const args of [
+          { action: "getGuide" },
+          { action: "getSchema" },
+          { action: "checkScript", script: structuredClone(sample) },
+          { action: "present", script: structuredClone(sample) },
+          { action: "present", path: "quizzes/example.json" },
+        ]) {
+          for (const r of [await mod.manageKenteiScript({}, args), await mod.pluginCore.execute(context, args)]) {
+            assert.equal(r.message, mod.MISSING_KEY_MESSAGE, JSON.stringify(args));
+            assert.equal(r.data, undefined, "no View");
+          }
+        }
+        await assert.rejects(mod.manageKenteiScript({}, { kind: "grade", script: sample, questionId: sample.questions[0].id, answer: "x" }), (e) => e.message === mod.MISSING_KEY_MESSAGE);
+      });
+    }
+  });
+
+  test(`dist/${file} loads standalone, in the legacy shape both hosts give a context to`, () => withProcessKey("test-key", async () => {
+    const mod = await load(file);
     assert.equal(mod.TOOL_DEFINITION.name, "manageKenteiScript");
     assert.equal(mod.default, undefined, "no definePlugin factory: hosts would call it without a context");
     // MulmoClaude's runtime loader: the export named after the tool, (context, args).
@@ -62,5 +102,5 @@ for (const file of ["index.js", "index.cjs"]) {
     assert.equal(byPath.data.script.meta.title, sample.meta.title);
     const checked = await mod.pluginCore.execute(context, { action: "checkScript", path: "quizzes/example.json" });
     assert.match(checked.message, /is a valid KenteiScript/);
-  });
+  }));
 }

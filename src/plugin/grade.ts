@@ -5,33 +5,20 @@ import { parseKenteiScript } from "../kentei-script.ts";
 import { gradeAnswer } from "../grading.ts";
 import { MAX_ANSWER_CHARS } from "./core/play.ts";
 import type { AnswerGrade, GradeRequest } from "./core/types.ts";
+import { hasJevKey, MISSING_KEY_MESSAGE, type GradeEnv } from "./core/env.ts";
 
-/** Where to grade: the key, and the optional model and endpoint overrides. */
-export interface GradeEnv {
-  apiKey?: string | undefined;
-  model?: string | undefined;
-  url?: string | undefined;
-}
-
-/**
- * The grading settings from the host process's environment: TYPESAFE_API_KEY, and the same
- * JEV_MODEL / JEV_URL overrides the MulmoKentei Worker reads (JEV_URL points tests at
- * scripts/mock-jev.mjs). Empty outside Node.
- */
-export function envFromProcess(): GradeEnv {
-  const env = (globalThis as { process?: { env?: Record<string, string | undefined> } }).process?.env ?? {};
-  return { apiKey: env.TYPESAFE_API_KEY || undefined, model: env.JEV_MODEL || undefined, url: env.JEV_URL || undefined };
-}
+export { envFromProcess, type GradeEnv } from "./core/env.ts";
 
 const isRecord = (value: unknown): value is Record<string, unknown> => typeof value === "object" && value !== null && !Array.isArray(value);
 
 /** A dispatch call from the View, as opposed to a tool call carrying a KenteiScript (which has no `kind`). */
 export const isGradeRequest = (args: unknown): args is GradeRequest => isRecord(args) && args.kind === "grade";
 
-/** Grades one answer with JEV. Throws with a readable message when it cannot. */
+/** Grades one answer with JEV. Throws with a readable message when it cannot (MISSING_KEY_MESSAGE without a key). */
 export async function gradeRequest(args: unknown, env: GradeEnv): Promise<AnswerGrade> {
   if (!isRecord(args) || args.kind !== "grade") throw new Error('expected { kind: "grade", script, questionId, answer }');
-  if (!env.apiKey) throw new Error("This host has no TYPESAFE_API_KEY, so answers cannot be graded here");
+  // The same check, and the same message, as every tool action (executeKentei).
+  if (!hasJevKey(env)) throw new Error(MISSING_KEY_MESSAGE);
   const { questionId, answer } = args;
   if (typeof questionId !== "string" || typeof answer !== "string") throw new Error("questionId and answer must be strings");
   const script = parseKenteiScript(args.script, "The script");

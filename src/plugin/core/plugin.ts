@@ -4,7 +4,8 @@ import { KenteiScript, parseKenteiScript } from "../../kentei-script.ts";
 import { maxPoints } from "../../game.ts";
 import { AUTHORING_GUIDE, authoringIssues } from "../../authoring.ts";
 import { ACTIONS, TOOL_DEFINITION, TOOL_NAME, type Action } from "./definition.ts";
-import type { GradingMode, KenteiData, KenteiJson } from "./types.ts";
+import type { KenteiData, KenteiJson } from "./types.ts";
+import { envFromProcess, hasJevKey, MISSING_KEY_MESSAGE, type GradeEnv } from "./env.ts";
 
 export type KenteiResult = ToolResult<KenteiData, KenteiJson>;
 
@@ -113,19 +114,17 @@ function checkResult(script: KenteiScript, path: string | undefined): KenteiResu
 }
 
 /** present: show the quiz; return at once and let the results arrive as the next message. */
-function presentResult(script: KenteiScript, path: string | undefined, grading: GradingMode): KenteiResult {
+function presentResult(script: KenteiScript, path: string | undefined): KenteiResult {
   const { meta, rules, questions } = script;
   const max = maxPoints(rules, questions);
-  const data: KenteiData = path ? { script, grading, path } : { script, grading };
+  const data: KenteiData = path ? { script, path } : { script };
   const jsonData: KenteiJson = {
     title: meta.title,
     questions: questions.length,
     questionsPerGame: rules.questionsPerGame,
     levels: `${rules.minLevel}-${rules.maxLevel}, starting at ${rules.startLevel}, max ${max} points`,
-    grading,
     ...(path ? { path } : {}),
   };
-  const grader = grading === "jev" ? "each answer is graded by JEV as it is given" : "the answers come back ungraded, for you to grade";
   // Shown anyway (the script is valid), but the LLM should know its top grades cannot be earned.
   const unreachable = rules.grades.filter((g) => g.min > max).map((g) => g.grade);
   const warning = unreachable.length
@@ -133,7 +132,7 @@ function presentResult(script: KenteiScript, path: string | undefined, grading: 
     : "";
   return {
     toolName: TOOL_NAME,
-    message: `KenteiScript 「${meta.title}」${path ? ` (from ${path})` : ""} is shown to the user: ${rules.questionsPerGame} of ${questions.length} questions; ${grader}.${warning}`,
+    message: `KenteiScript 「${meta.title}」${path ? ` (from ${path})` : ""} is shown to the user: ${rules.questionsPerGame} of ${questions.length} questions; each answer is graded by JEV as it is given.${warning}`,
     title: meta.title,
     data,
     jsonData,
@@ -141,6 +140,13 @@ function presentResult(script: KenteiScript, path: string | undefined, grading: 
       "The quiz is shown to the user. Do not ask the questions yourself and do not reveal the answers. Wait: their results will arrive as your next message.",
   };
 }
+
+/**
+ * The failure every action returns without a key. gui-chat-protocol's ToolResult has no error flag,
+ * so the failure is the message itself (it starts "manageKenteiScript is unavailable"), with
+ * instructions to stop and no `data`, so the host renders no card.
+ */
+const missingKey = (): KenteiResult => text(MISSING_KEY_MESSAGE, "Stop here: tell the user what to set, and do not call manageKenteiScript again until they say the host has the key.");
 
 const isAction = (value: unknown): value is Action => typeof value === "string" && (ACTIONS as readonly string[]).includes(value);
 
@@ -150,11 +156,12 @@ const isAction = (value: unknown): value is Action => typeof value === "string" 
  * file access of its own) without showing anything; present validates it and returns at once with
  * the View's data, the user's results arriving later as a message. Only present renders a card.
  *
- * `grading` is decided by the caller: this core is host-neutral and cannot see a server's
- * environment, so on its own it leaves grading to the LLM. The server entry (src/plugin/server.ts)
- * passes "jev" when the host has a TYPESAFE_API_KEY.
+ * Grading needs JEV, so every action first checks `env` (the same GradeEnv the View's grade dispatch
+ * grades with; the server entry passes the host's) and, without a TYPESAFE_API_KEY, fails with
+ * MISSING_KEY_MESSAGE and no `data`, so no View is shown and the LLM is told to stop.
  */
-export async function executeKentei(context: KenteiContext, args: unknown, grading: GradingMode = "llm"): Promise<KenteiResult> {
+export async function executeKentei(context: KenteiContext, args: unknown, env: GradeEnv): Promise<KenteiResult> {
+  if (!hasJevKey(env)) return missingKey();
   const input = isRecord(args) ? args : {};
   const action = input.action;
   if (!isAction(action)) {
@@ -169,14 +176,15 @@ export async function executeKentei(context: KenteiContext, args: unknown, gradi
     case "present": {
       const loaded = await loadScript(context, input);
       if ("error" in loaded) return action === "present" ? { ...loaded.error, message: `Nothing was shown. ${loaded.error.message}` } : loaded.error;
-      return action === "checkScript" ? checkResult(loaded.script, loaded.path) : presentResult(loaded.script, loaded.path, grading);
+      return action === "checkScript" ? checkResult(loaded.script, loaded.path) : presentResult(loaded.script, loaded.path);
     }
   }
 }
 
 export const pluginCore: ToolPluginCore<KenteiData, KenteiJson, object> = {
   toolDefinition: TOOL_DEFINITION,
-  execute: (context, args) => executeKentei(context as KenteiContext, args),
+  // The same source as the server entry: the process environment (empty in a browser, so it fails there).
+  execute: (context, args) => executeKentei(context as KenteiContext, args, envFromProcess()),
   generatingMessage: "Preparing the quiz...",
   isEnabled: () => true,
 };

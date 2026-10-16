@@ -1,4 +1,4 @@
-// Replaces dist/types/kentei-script.d.ts, written by vue-tsc for `npm run build:plugin`, with plain
+// Replaces dist/types/kentei-script.d.ts, written by vue-tsc for `yarn build:plugin`, with plain
 // TypeScript types. The emitted file declares the Zod schema objects, so it imports `zod`, which is
 // only a devDependency (the plugin's JS bundles Zod); a consumer without Zod would get TS2307. The
 // types are z.infer'red from the schema, so this script asks the type checker for each exported

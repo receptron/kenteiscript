@@ -1,5 +1,5 @@
 // Checks every KenteiScript in quizzes/ and its sample answers. No server and no API key needed.
-//   npm run check:quizzes
+//   yarn check:quizzes
 // First the Zod schema (src/kentei-script.ts): the format itself. Then the authoring rules from
 // CLAUDE.md, which a valid KenteiScript can still break without any other test noticing.
 import { existsSync, readdirSync, readFileSync } from "node:fs";
@@ -39,7 +39,7 @@ for (const file of files) {
   // Sample answers: every case names a real question and a grade that question can get.
   const testsFile = join(dir, `${id}.tests.json`);
   if (!existsSync(testsFile)) {
-    fail(id, `no ${id}.tests.json with sample answers for npm run test:grading`);
+    fail(id, `no ${id}.tests.json with sample answers for yarn test:grading`);
   } else {
     const parsed = KenteiTests.safeParse(JSON.parse(readFileSync(testsFile, "utf8")));
     if (!parsed.success) {

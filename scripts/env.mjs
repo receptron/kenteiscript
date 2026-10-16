@@ -37,7 +37,7 @@ export const dbName = () => readBaseConfig().match(/"database_name"\s*:\s*"([^"]
 /** Writes wrangler.remote.jsonc: wrangler.jsonc with the D1 id from .env. */
 export function writeRemoteConfig() {
   const id = readEnv()[D1_ID_KEY];
-  if (!id) throw new Error(`${D1_ID_KEY} is not set in .env. Run \`npm run setup:cloudflare\` first.`);
+  if (!id) throw new Error(`${D1_ID_KEY} is not set in .env. Run \`yarn setup:cloudflare\` first.`);
   const header = "// Generated from wrangler.jsonc and .env by scripts/env.mjs. Do not edit; git-ignored.\n";
   writeFileSync(remoteConfig, header + readBaseConfig().replace(/("database_id"\s*:\s*")[^"]*(")/, `$1${id}$2`));
   return remoteConfig;

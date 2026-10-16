@@ -1,6 +1,6 @@
 {
   // Type-checks the chat plugin (src/plugin/, with its .vue files) and emits its declarations into
-  // dist/ (`npm run build:plugin`). The root tsconfig.json checks the Worker and scripts.
+  // dist/ (`yarn build:plugin`). The root tsconfig.json checks the Worker and scripts.
   "compilerOptions": {
     "target": "ES2022",
     "module": "ESNext",

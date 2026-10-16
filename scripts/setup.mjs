@@ -1,6 +1,6 @@
 // One-time setup.
-//   npm run setup               local: writes .dev.vars from .env and creates the local D1 tables
-//   npm run setup:cloudflare    Cloudflare: creates the D1 database (if needed), records its id in
+//   yarn setup               local: writes .dev.vars from .env and creates the local D1 tables
+//   yarn setup:cloudflare    Cloudflare: creates the D1 database (if needed), records its id in
 //                               .env, creates the tables, deploys, and uploads the API key
 import { writeFileSync } from "node:fs";
 import { join } from "node:path";
@@ -15,7 +15,7 @@ if (!remote) {
   writeFileSync(join(root, ".dev.vars"), `TYPESAFE_API_KEY=${env.TYPESAFE_API_KEY}\n`);
   console.log("wrote .dev.vars (git-ignored)");
   wrangler(["d1", "execute", name, "--local", "--file", "schema.sql"], { stdio: ["pipe", "ignore", "inherit"] });
-  console.log(`local D1 "${name}" is ready. Start the app with: npm run dev`);
+  console.log(`local D1 "${name}" is ready. Start the app with: yarn dev`);
   process.exit(0);
 }
 
@@ -35,4 +35,4 @@ wranglerRemote(["d1", "execute", name, "--remote", "--file", "schema.sql", "-y"]
 console.log("tables created");
 wranglerRemote(["deploy"], { stdio: "inherit" });
 wranglerRemote(["secret", "put", "TYPESAFE_API_KEY"], { input: env.TYPESAFE_API_KEY, stdio: ["pipe", "ignore", "inherit"] });
-console.log("TYPESAFE_API_KEY uploaded as a Worker secret. From now on, deploy with: npm run deploy");
+console.log("TYPESAFE_API_KEY uploaded as a Worker secret. From now on, deploy with: yarn deploy");

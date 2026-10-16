@@ -175,7 +175,7 @@ export type Question = z.infer<typeof Question>;
 export type Grade = z.infer<typeof Grade>;
 export type Rules = z.infer<typeof Rules>;
 
-/** Sample answers for `npm run test:grading` (quizzes/<id>.tests.json). */
+/** Sample answers for `yarn test:grading` (quizzes/<id>.tests.json). */
 export const KenteiTests = z.array(
   z.strictObject({
     id: z.string(),

@@ -2,7 +2,7 @@
 // import()s dist/index.js straight from its plugin cache (~/mulmoclaude/plugins/.cache/<name>/<version>/),
 // with no node_modules there or above, so dist/index.js and dist/index.cjs must have no bare imports
 // (gui-chat-protocol's core and Zod are bundled; only node: builtins would be allowed).
-// Run `npm run build:plugin` first (CI does).
+// Run `yarn build:plugin` first (CI does).
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { cpSync, existsSync, mkdtempSync, readdirSync, readFileSync, rmSync, copyFileSync } from "node:fs";
@@ -12,7 +12,7 @@ import { join } from "node:path";
 import { pathToFileURL } from "node:url";
 
 const root = new URL("..", import.meta.url).pathname;
-if (!existsSync(join(root, "dist", "index.js"))) throw new Error("dist/ is missing: run `npm run build:plugin` first");
+if (!existsSync(join(root, "dist", "index.js"))) throw new Error("dist/ is missing: run `yarn build:plugin` first");
 
 const dir = mkdtempSync(join(tmpdir(), "kentei-plugin-"));
 cpSync(join(root, "dist"), join(dir, "dist"), { recursive: true });

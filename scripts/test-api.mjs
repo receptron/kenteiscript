@@ -1,8 +1,8 @@
 // End-to-end check of a running server: the quiz is served without its criteria, the
 // cheating guards hold, and a full game is graded, recorded and charted.
 //
-//   npm run dev        (in another terminal)
-//   npm test [baseUrl] [quiz]      default http://localhost:8787
+//   yarn dev        (in another terminal)
+//   yarn test [baseUrl] [quiz]      default http://localhost:8787
 //
 // A full game makes questionsPerGame JEV calls and records one result, so point it at a
 // deployed site only if you are happy to add a test result to its chart.
@@ -29,7 +29,7 @@ let page;
 try {
   page = await fetch(`${base}/`);
 } catch {
-  console.error(`No server at ${base}. Start one with \`npm run dev\` in another terminal, or pass its URL.`);
+  console.error(`No server at ${base}. Start one with \`yarn dev\` in another terminal, or pass its URL.`);
   process.exit(1);
 }
 check(page.ok, "page is served", `HTTP ${page.status}`);

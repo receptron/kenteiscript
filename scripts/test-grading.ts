@@ -1,7 +1,7 @@
 // Grades the sample answers in quizzes/<quiz>.tests.json with JEV and checks each grade.
 // Use it after editing criteria, to see that JEV still grades them the way you intend.
 //
-//   npm run test:grading [quiz]          (default quiz: sengoku; needs TYPESAFE_API_KEY in .env)
+//   yarn test:grading [quiz]          (default quiz: sengoku; needs TYPESAFE_API_KEY in .env)
 //
 // Each test case: { "id": "<question id>", "answer": "...", "expect": "correct" | "close" | "wrong" | 0..3 }
 import { existsSync, readFileSync } from "node:fs";

@@ -169,7 +169,7 @@ levels are in range, grades go from highest to lowest and end at `min: 0`, and
 error, so a typo such as `explaination` is caught instead of silently ignored.
 
 ```sh
-npm run check:quizzes   # every KenteiScript in quizzes/: the schema, then the authoring rules below
+yarn check:quizzes   # every KenteiScript in quizzes/: the schema, then the authoring rules below
 ```
 
 `check:quizzes` also checks the authoring rules a valid KenteiScript can still break: every
@@ -209,7 +209,7 @@ and a weak and a strong answer for written questions:
 ```
 
 ```sh
-npm run test:grading -- sengoku   # grades every sample answer with the real JEV (needs a key)
+yarn test:grading sengoku   # grades every sample answer with the real JEV (needs a key)
 ```
 
 It prints the probability JEV gives to each grade, so you can see where a rubric is ambiguous.
@@ -292,7 +292,7 @@ way as presentForm (`@mulmoclaude/form-plugin`), in `src/plugin/`:
 ### Adding it to a host
 
 ```sh
-npm run build:plugin   # dist/: index.js (server), vue.js (View, Preview), style.css, types/
+yarn build:plugin   # dist/: index.js (server), vue.js (View, Preview), style.css, types/
 ```
 
 | export | file | what |
@@ -333,7 +333,7 @@ factory could never receive `context.files.byPath`.
   (`server/utils/files/by-path.ts`, as `server/plugins/html-builtin.ts` does for presentHtml).
 
 The package is still `"private": true`: until it is published, a host depends on it from a local
-path or a packed tarball (`npm pack` after `npm run build:plugin`).
+path or a packed tarball (`yarn pack` after `yarn build:plugin`).
 
 ## MulmoKentei: the sample service
 
@@ -346,10 +346,10 @@ else did. The same code runs on your machine with `wrangler dev` and a local D1 
 Requirements: Node.js 22.18 or later, and a TypeSafe API key.
 
 ```sh
-npm install
+yarn install
 cp .env.example .env          # then put your key in TYPESAFE_API_KEY
-npm run setup                 # writes .dev.vars and creates the local D1 tables
-npm run dev                   # http://localhost:8787
+yarn setup                 # writes .dev.vars and creates the local D1 tables
+yarn dev                   # http://localhost:8787
 ```
 
 `.env` and `.dev.vars` hold your key and are git-ignored.
@@ -357,7 +357,7 @@ npm run dev                   # http://localhost:8787
 ### Choosing the quizzes
 
 Every KenteiScript in `quizzes/` is bundled into the Worker (after validation). `wrangler dev`
-picks up a new one straight away, and `npm run deploy` publishes it.
+picks up a new one straight away, and `yarn deploy` publishes it.
 
 - **Picker:** the start screen shows a tab for each quiz. A KenteiScript with `"hidden": true` in
   its `meta` is left out of the tabs.
@@ -369,12 +369,12 @@ Results are stored per quiz, so each quiz has its own chart.
 
 ### Deploy to Cloudflare
 
-You need a Cloudflare account. Run `npx wrangler login` once. Then:
+You need a Cloudflare account. Run `yarn wrangler login` once. Then:
 
 ```sh
-npm run setup:cloudflare      # once: creates the D1 database, records its id in .env,
+yarn setup:cloudflare      # once: creates the D1 database, records its id in .env,
                               # creates the tables, deploys, and uploads TYPESAFE_API_KEY as a secret
-npm run deploy                # every time after that
+yarn deploy                # every time after that
 ```
 
 Your account's ids stay out of the repo. `wrangler.jsonc` has a placeholder D1 id, which local
@@ -383,8 +383,8 @@ to Cloudflare go through `scripts/remote.mjs`, which writes `wrangler.remote.jso
 with that id and runs wrangler with it. For other wrangler commands against your deployment:
 
 ```sh
-npm run remote -- d1 execute mulmo-kentei --remote --command "SELECT grade, COUNT(*) FROM plays GROUP BY grade"
-npm run remote -- tail        # live logs
+yarn remote d1 execute mulmo-kentei --remote --command "SELECT grade, COUNT(*) FROM plays GROUP BY grade"
+yarn remote tail        # live logs
 ```
 
 The site is then at `https://mulmo-kentei.<your-subdomain>.workers.dev`. To use a different
@@ -411,19 +411,19 @@ browser ── GET  /api/quizzes       titles for the picker
 ### Tests and CI
 
 ```sh
-npm run typecheck             # the Worker, the scripts and the plugin (vue-tsc)
-npm run test:unit             # the game rules, the plugin's execute, state, results and server grading
-npm run build:plugin && npm run test:plugin   # the built View in jsdom; the server entry loaded from an empty dir
-npm test                      # end-to-end check of a running server (start `npm run dev` first)
-npm test -- http://localhost:8787 example     # another quiz, or another server
+yarn typecheck             # the Worker, the scripts and the plugin (vue-tsc)
+yarn test:unit             # the game rules, the plugin's execute, state, results and server grading
+yarn build:plugin && yarn test:plugin   # the built View in jsdom; the server entry loaded from an empty dir
+yarn test                      # end-to-end check of a running server (start `yarn dev` first)
+yarn test http://localhost:8787 example     # another quiz, or another server
 ```
 
-`npm test` makes sure the browser never receives criteria, answers or explanations. It also checks
+`yarn test` makes sure the browser never receives criteria, answers or explanations. It also checks
 the cheating guards (no grading without a game, no grading the same question twice, no recording
 an unfinished game or the same game twice) and plays one full game.
 
 `.github/workflows/ci.yml` runs on every push and pull request: typecheck, `check:quizzes`, the
-unit tests, the plugin build and View test, and `npm test` for every quiz against `wrangler dev` with a local D1. CI has no JEV key, so
+unit tests, the plugin build and View test, and `yarn test` for every quiz against `wrangler dev` with a local D1. CI has no JEV key, so
 `scripts/mock-jev.mjs` stands in for JEV (the Worker's `JEV_URL` var points at it; it grades every
 answer as the lowest grade and rejects a malformed request). On pushes to `main`, if the
 repository has a `TYPESAFE_API_KEY` secret, a second job runs `test:grading` for every quiz with

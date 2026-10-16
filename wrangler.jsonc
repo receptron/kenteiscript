@@ -17,9 +17,9 @@
       "binding": "DB",
       "database_name": "mulmo-kentei",
       // Placeholder, used as is for local development. The real id is CLOUDFLARE_D1_DATABASE_ID in .env
-      // (written by `npm run setup:cloudflare`); `npm run deploy` puts it into wrangler.remote.jsonc.
+      // (written by `yarn setup:cloudflare`); `yarn deploy` puts it into wrangler.remote.jsonc.
       "database_id": "00000000-0000-0000-0000-000000000000"
     }
   ]
-  // Secret (never in this file): TYPESAFE_API_KEY, uploaded from .env by `npm run setup:cloudflare`.
+  // Secret (never in this file): TYPESAFE_API_KEY, uploaded from .env by `yarn setup:cloudflare`.
 }

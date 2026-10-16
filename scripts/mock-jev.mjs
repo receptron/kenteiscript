@@ -2,7 +2,7 @@
 // It grades every answer as the lowest grade: "wrong" for Choice, level 0 for Score.
 //
 //   node scripts/mock-jev.mjs [port]          default 8788
-//   npx wrangler dev --var JEV_URL:http://127.0.0.1:8788/v1/systemone
+//   yarn wrangler dev --var JEV_URL:http://127.0.0.1:8788/v1/systemone
 //
 // It checks the request has the shape the real API expects, and answers 400 otherwise, so a
 // change that breaks the request still fails the test.

@@ -26,7 +26,7 @@ changes with those uses in mind, and do not claim them as supported until they a
 - The game rules (level moves, credit and points, question picking, grades, max points) are
   `src/game.ts`, pure functions shared by the Worker, the chat plugin's View and the page. The page
   has no build step, so it imports `/game.js`, which `scripts/gen-game.mjs` writes from
-  `src/game.ts` (types stripped) in the wrangler build step and `npm run typecheck`; it is
+  `src/game.ts` (types stripped) in the wrangler build step and `yarn typecheck`; it is
   git-ignored. Change the rules in `src/game.ts` only, keep it erasable TypeScript (no enums), and
   never edit `public/game.js`.
 - The **manageKenteiScript chat plugin** lives in `src/plugin/` (README, *In chat*): `core/`
@@ -34,17 +34,18 @@ changes with those uses in mind, and do not claim them as supported until they a
   `server.ts` (the executor in the legacy `(context, args)` shape, not a `definePlugin` factory,
   because hosts give a context, and so `files.byPath` for `path`, only to that shape; it takes the
   tool's actions and the View's `{ kind: "grade" }` dispatch) and
-  `grade.ts` (server-side JEV grading with the host's `TYPESAFE_API_KEY`). `npm run build:plugin`
+  `grade.ts` (server-side JEV grading with the host's `TYPESAFE_API_KEY`). `yarn build:plugin`
   builds it with vite into `dist/` (git-ignored); `scripts/gen-plugin-types.mjs` then rewrites
   `dist/types/kentei-script.d.ts` as plain types so the declarations do not import Zod. The tool is
   action-based (`getGuide`, `getSchema`, `checkScript`, `present`) to keep its definition small;
   the authoring guide it serves is `AUTHORING_GUIDE` in `src/authoring.ts`, so update it with the
   criteria rules below. It may use Zod and Vue; the Worker must not, so
   nothing under `src/plugin/` is imported from `src/index.ts`, `src/grading.ts` or `src/game.ts`.
-- Package manager: **npm** (package-lock.json).
+- Package manager: **yarn** v1 (`yarn.lock`; `packageManager` in package.json). Use `yarn <script>`,
+  never npm/`package-lock.json`. `yarn build` builds the plugin.
 - The npm package name is **`kenteiscript`** (npm names must be lowercase, so not `KenteiScript`),
   published to npm. The tarball is `files: ["dist"]` plus README, LICENSE and package.json;
-  `prepublishOnly` builds the plugin and runs its tests, so `npm publish` always ships a fresh,
+  `prepublishOnly` builds the plugin and runs its tests, so `yarn publish` always ships a fresh,
   tested `dist/`. Bump `version` for every publish. The Worker and D1 are still named `mulmo-kentei` in `wrangler.jsonc`:
   those are deployment names, and renaming them means a new site URL and a new database.
 - Player-facing text is Japanese. Code, comments, commit messages and docs are English.
@@ -77,41 +78,41 @@ deploy, so a bad file fails the build, not a game. Consequences:
   checkScript (1 per level) apply them.
 
 ## Run after changes
-- `npm run typecheck` — regenerates `src/quizzes.gen.ts`, `public/game.js` and the Worker types,
+- `yarn typecheck` — regenerates `src/quizzes.gen.ts`, `public/game.js` and the Worker types,
   then runs `tsc` (Worker, scripts, tests) and `vue-tsc -p tsconfig.plugin.json` (the plugin,
   with stricter flags).
-- `npm run test:unit` — the game rules and the plugin core (`node --test test/*.test.ts`). No
+- `yarn test:unit` — the game rules and the plugin core (`node --test test/*.test.ts`). No
   server, no key.
-- `npm run build:plugin && npm run test:plugin` — after any change under `src/plugin/`: builds
+- `yarn build:plugin && yarn test:plugin` — after any change under `src/plugin/`: builds
   `dist/`, mounts the built View in jsdom, and loads `dist/index.{js,cjs}` from a temp dir with no
   `node_modules` (the server entry must have no bare imports; only the browser entry may import
-  `vue` and `gui-chat-protocol/vue`). Check that `npx wrangler deploy --dry-run --outdir
+  `vue` and `gui-chat-protocol/vue`). Check that `yarn wrangler deploy --dry-run --outdir
   <dir>` still bundles no Zod or Vue after touching anything the Worker imports.
-- `npm test` — end-to-end check of a **running** server, so start `npm run dev` first. It needs
-  no flags for the default quiz; `npm test -- http://localhost:8787 <quiz>` for another one.
-- `npm run check:quizzes` — the schema plus the authoring conventions, for every KenteiScript. No
+- `yarn test` — end-to-end check of a **running** server, so start `yarn dev` first. It needs
+  no flags for the default quiz; `yarn test http://localhost:8787 <quiz>` for another one.
+- `yarn check:quizzes` — the schema plus the authoring conventions, for every KenteiScript. No
   server, no key; run it after any edit under `quizzes/`.
-- `npm run test:grading -- <quiz>` — after **any** change to a quiz's criteria. It calls JEV for
+- `yarn test:grading <quiz>` — after **any** change to a quiz's criteria. It calls JEV for
   real (pennies), prints the probability of every grade, and is the only check that a rubric
-  grades the way you meant. `typecheck` and `npm test` pass with a rubric that grades nonsense.
+  grades the way you meant. `typecheck` and `yarn test` pass with a rubric that grades nonsense.
 
 CI (`.github/workflows/ci.yml`) runs typecheck, `check:quizzes`, the unit tests, the plugin build
-and View test, and `npm test` for every quiz on each push and PR. It has no JEV key: `scripts/mock-jev.mjs` stands in, reached through the Worker's
+and View test, and `yarn test` for every quiz on each push and PR. It has no JEV key: `scripts/mock-jev.mjs` stands in, reached through the Worker's
 `JEV_URL` var (`wrangler dev --var JEV_URL:…`), and grades everything as the lowest grade while
 rejecting a malformed request. So CI proves the plumbing, never the rubrics — `test:grading` with
 the real JEV runs in CI only on pushes to `main` when the repo has a `TYPESAFE_API_KEY` secret.
 `JEV_URL` is unset in production; never set it in `wrangler.jsonc`.
 
-First run on a fresh clone: `npm install`, `cp .env.example .env`, set `TYPESAFE_API_KEY`, then
-`npm run setup` (writes `.dev.vars` and creates the local D1 tables).
+First run on a fresh clone: `yarn install`, `cp .env.example .env`, set `TYPESAFE_API_KEY`, then
+`yarn setup` (writes `.dev.vars` and creates the local D1 tables).
 
 ## Deploying to Cloudflare
 
-Prerequisites: `npx wrangler login` once, and `TYPESAFE_API_KEY` set in `.env`.
+Prerequisites: `yarn wrangler login` once, and `TYPESAFE_API_KEY` set in `.env`.
 
 ```sh
-npm run setup:cloudflare   # first time only
-npm run deploy             # every time after that
+yarn setup:cloudflare   # first time only
+yarn deploy             # every time after that
 ```
 
 `setup:cloudflare` finds or creates the D1 database named in `wrangler.jsonc`, writes its id to
@@ -124,22 +125,22 @@ placeholder `00000000-…`, which local development uses as is. Anything that ta
 goes through `scripts/remote.mjs`: it writes `wrangler.remote.jsonc` (git-ignored) with the id from
 `.env` and runs wrangler with `--config` pointing at it. So:
 
-- Deploy with `npm run deploy`, never a bare `npx wrangler deploy` — that reads `wrangler.jsonc`
+- Deploy with `yarn deploy`, never a bare `yarn wrangler deploy` — that reads `wrangler.jsonc`
   and binds the placeholder, which is no database at all.
-- Any other wrangler command against the deployment goes through `npm run remote -- …`:
+- Any other wrangler command against the deployment goes through `yarn remote …`:
   ```sh
-  npm run remote -- d1 execute mulmo-kentei --remote --command "SELECT quiz, grade, COUNT(*) FROM plays GROUP BY quiz, grade"
-  npm run remote -- tail                                   # live logs
-  npm run remote -- secret put TYPESAFE_API_KEY            # rotate the key (prompts for it)
+  yarn remote d1 execute mulmo-kentei --remote --command "SELECT quiz, grade, COUNT(*) FROM plays GROUP BY quiz, grade"
+  yarn remote tail                                   # live logs
+  yarn remote secret put TYPESAFE_API_KEY            # rotate the key (prompts for it)
   ```
 - Never "fix" a missing-id error by pasting the id into `wrangler.jsonc`. The error says what to
-  run: `npm run setup:cloudflare`.
+  run: `yarn setup:cloudflare`.
 
 Other things that bite:
 
 - **The first requests to a newly created Worker can fail** while its route propagates. This
   happened on both first deploys. Retry before debugging.
-- **`npm test` against the live site records a real result** in that quiz's chart (one F per
+- **`yarn test` against the live site records a real result** in that quiz's chart (one F per
   run), and it costs ten JEV calls. After testing a live deploy, delete what the test added —
   but look first: other rows are real players, and must stay.
 - To deploy under another name, change both `name` and `database_name` in `wrangler.jsonc`
@@ -158,9 +159,9 @@ Questions live in the quiz's KenteiScript, `quizzes/<quiz>.json`; sample answers
 2. Add sample answers to `<quiz>.tests.json` — `{ "id", "answer", "expect" }`, where `expect` is a
    Choice label (`"correct"`, `"close"`, `"wrong"`) or a Score level (`0`–`3`). Always include the
    **tempting wrong answer** and, for written questions, a weak and a strong answer.
-3. `npm run test:grading -- <quiz>`. Fix the criteria, not the expectation, unless the model's
+3. `yarn test:grading <quiz>`. Fix the criteria, not the expectation, unless the model's
    grade is genuinely the fairer one (then say why in the commit).
-4. `npm run check:quizzes`, then `npm run dev` picks the file up straight away; `npm run deploy`
+4. `yarn check:quizzes`, then `yarn dev` picks the file up straight away; `yarn deploy`
    publishes it.
 
 ### Writing criteria JEV grades correctly
@@ -202,7 +203,7 @@ from ★3) only stay meaningful if the level spread does.
 ## Adding a new quiz
 
 Drop a new KenteiScript, `quizzes/<id>.json` (copy `ml.json` or `nihongo.json` for the
-structure), and its `<id>.tests.json`, then run `npm run check:quizzes`. Nothing else is needed:
+structure), and its `<id>.tests.json`, then run `yarn check:quizzes`. Nothing else is needed:
 
 - `scripts/gen-quizzes.mjs` bundles every `quizzes/*.json` (except `*.tests.json`) into
   `src/quizzes.gen.ts` before each `wrangler dev` / deploy, after validating it with the schema.
@@ -218,7 +219,7 @@ rewriting an identical file makes `wrangler dev` see a change in `src/` and rebu
 ## What the browser must never see
 
 `publicQuiz()` in `src/grading.ts` strips `jev` and `explanation` before a quiz is sent, and
-explanations arrive only with a grade. `npm test` fails if criteria leak. The score is computed
+explanations arrive only with a grade. `yarn test` fails if criteria leak. The score is computed
 on the server from its own `answers` rows; the page never reports points. Keep both when adding
 fields: a new field on a question is private unless it is added to `publicQuiz()` on purpose.
 

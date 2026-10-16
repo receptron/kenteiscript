@@ -22,23 +22,23 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 22
-          cache: npm
-      - run: npm ci
-      - run: npm run typecheck
-      - run: npm run check:quizzes
-      - run: npm run test:unit
-      - run: npm run build:plugin
-      - run: npm run test:plugin
+          cache: yarn
+      - run: yarn install --frozen-lockfile
+      - run: yarn typecheck
+      - run: yarn check:quizzes
+      - run: yarn test:unit
+      - run: yarn build:plugin
+      - run: yarn test:plugin
 
       - name: Set up local D1
         run: |
           echo "TYPESAFE_API_KEY=ci-dummy-key" > .env
-          npm run setup
+          yarn setup
 
       - name: Start mock JEV and wrangler dev
         run: |
           node scripts/mock-jev.mjs 8788 > mock-jev.log 2>&1 &
-          npx wrangler dev --port 8787 --var JEV_URL:http://127.0.0.1:8788/v1/systemone > wrangler.log 2>&1 &
+          yarn wrangler dev --port 8787 --var JEV_URL:http://127.0.0.1:8788/v1/systemone > wrangler.log 2>&1 &
           for i in $(seq 1 60); do
             curl -sf http://localhost:8787/api/quizzes > /dev/null && exit 0
             sleep 2
@@ -50,7 +50,7 @@ jobs:
         run: |
           for quiz in $(ls quizzes | grep -v '\.tests\.json$' | sed 's/\.json$//'); do
             echo "== $quiz"
-            npm test -- http://localhost:8787 "$quiz"
+            yarn test http://localhost:8787 "$quiz"
           done
 
       - name: Server logs
@@ -75,7 +75,7 @@ jobs:
         if: env.TYPESAFE_API_KEY != ''
         with:
           node-version: 22
-          cache: npm
+          cache: yarn
       - name: Grade the sample answers of every quiz
         if: env.TYPESAFE_API_KEY != ''
         run: |

@@ -1,13 +1,13 @@
 // The manageKenteiScript View, as a host mounts it: the built dist/vue.js in a jsdom document, with a
 // fake plugin runtime whose dispatch stands in for the server's JEV grading.
-// Run `npm run build:plugin` first (CI does).
+// Run `yarn build:plugin` first (CI does).
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { existsSync } from "node:fs";
 import { JSDOM } from "jsdom";
 
 const dist = new URL("../dist/vue.js", import.meta.url);
-if (!existsSync(dist)) throw new Error("dist/vue.js is missing: run `npm run build:plugin` first");
+if (!existsSync(dist)) throw new Error("dist/vue.js is missing: run `yarn build:plugin` first");
 
 const dom = new JSDOM("<!doctype html><html><body></body></html>", { pretendToBeVisual: true });
 for (const key of ["window", "document", "navigator", "Node", "Element", "HTMLElement", "SVGElement", "Event", "KeyboardEvent", "MutationObserver"]) {

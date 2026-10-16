@@ -24,7 +24,7 @@ export async function gradeRequest(args: unknown, env: GradeEnv): Promise<Answer
   const script = parseKenteiScript(args.script, "The script");
   const q = script.questions.find((x) => x.id === questionId);
   if (!q) throw new Error(`No question ${questionId} in the script`);
-  const text = answer.trim().slice(0, MAX_ANSWER_CHARS) || "（無回答）";
+  const text = answer.trim().slice(0, MAX_ANSWER_CHARS);
   const g = await gradeAnswer(script, q, text, { apiKey: env.apiKey, model: env.model, url: env.url });
   return { type: g.type, result: g.result, probabilities: g.probabilities, credit: g.credit, points: g.points };
 }

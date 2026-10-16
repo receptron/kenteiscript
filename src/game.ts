@@ -14,6 +14,17 @@ import type { Grade, Question, Rules } from "./kentei-script.ts";
 /** The kind of grade an answer got: a Choice label or a Score level. */
 export type GradeType = "Choice" | "Score";
 
+/** rules.credit when a script leaves it out: three Choice labels, four Score levels (0-3). */
+export function defaultCredit(): Rules["credit"] {
+  return { Choice: { correct: 1, close: 0.5, wrong: 0 }, Score: [0, 0, 0.5, 1] };
+}
+
+/** The script with rules.credit filled in when it was left out, as the Zod schema's default does. */
+export function withDefaultCredit<S extends { rules: { credit?: Rules["credit"] | undefined } }>(script: S): S & { rules: { credit: Rules["credit"] } } {
+  if (script.rules.credit) return script as S & { rules: { credit: Rules["credit"] } };
+  return { ...script, rules: { ...script.rules, credit: defaultCredit() } };
+}
+
 /** The credit a graded answer earns, from rules.credit. An unknown label or level earns 0. */
 export function creditFor(rules: Pick<Rules, "credit">, type: GradeType, result: string | number): number {
   const credit = type === "Choice" ? rules.credit.Choice[String(result)] : rules.credit.Score[Number(result)];

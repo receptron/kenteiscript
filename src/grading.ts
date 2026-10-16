@@ -17,13 +17,34 @@ export type GradeResult = {
 export const JEV_URL = "https://api.typesafe.ai/v1/systemone";
 export const DEFAULT_MODEL = "jev-latest";
 
-/** Ask JEV to grade one answer against the question's criteria. */
+/**
+ * The grade of a blank answer, without asking JEV: the lowest Choice label (by credit) or Score
+ * level 0. JEV, asked about an empty answer, has graded it correct.
+ */
+export function noAnswerGrade(quiz: KenteiScript, q: Question): GradeResult {
+  const isChoice = q.jev.type === "Choice";
+  const labels = isChoice ? Object.keys(quiz.rules.credit.Choice) : quiz.rules.credit.Score.map((_, i) => String(i));
+  const result = isChoice ? labels.reduce((a, b) => (creditFor(quiz.rules, "Choice", b) < creditFor(quiz.rules, "Choice", a) ? b : a)) : "0";
+  const credit = creditFor(quiz.rules, q.jev.type, result);
+  return {
+    type: q.jev.type,
+    result: isChoice ? result : 0,
+    probabilities: Object.fromEntries(labels.map((l) => [l, l === result ? 1 : 0])),
+    credit,
+    points: pointsFor(q.level, credit),
+    explanation: q.explanation,
+    inputTokens: 0,
+  };
+}
+
+/** Ask JEV to grade one answer against the question's criteria. A blank answer is not sent (noAnswerGrade). */
 export async function gradeAnswer(
   quiz: KenteiScript,
   q: Question,
   answer: string,
   opts: { apiKey: string; model?: string | undefined; url?: string | undefined },
 ): Promise<GradeResult> {
+  if (!answer.trim()) return noAnswerGrade(quiz, q);
   const isChoice = q.jev.type === "Choice";
   const res = await fetch(opts.url || JEV_URL, {
     method: "POST",

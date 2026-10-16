@@ -3,7 +3,7 @@
 export { TOOL_NAME, TOOL_DEFINITION, TOOL_DESCRIPTION, SYSTEM_PROMPT, ACTIONS, type Action } from "./definition.ts";
 export { executeKentei, kenteiJsonSchema, pluginCore, type KenteiResult, type KenteiContext } from "./plugin.ts";
 export { envFromProcess, hasJevKey, MISSING_KEY_MESSAGE, type GradeEnv } from "./env.ts";
-export { AUTHORING_GUIDE, authoringIssues, INJECTION_GUARD, type AuthoringIssue } from "../../authoring.ts";
+export { AUTHORING_GUIDE, authoringIssues, INJECTION_GUARD, INJECTION_GUARD_EN, type AuthoringIssue } from "../../authoring.ts";
 export { samples, SAMPLE_SCRIPT } from "./samples.ts";
 export type { KenteiData, KenteiJson, GradeRequest, AnswerGrade } from "./types.ts";
 export {

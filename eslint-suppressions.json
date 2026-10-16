@@ -73,7 +73,7 @@
       "count": 1
     },
     "sonarjs/reduce-initial-value": {
-      "count": 2
+      "count": 1
     }
   },
   "src/index.ts": {
@@ -94,6 +94,14 @@
     },
     "sonarjs/cognitive-complexity": {
       "count": 1
+    }
+  },
+  "src/jev-grade.ts": {
+    "@typescript-eslint/consistent-type-assertions": {
+      "count": 1
+    },
+    "@typescript-eslint/no-non-null-assertion": {
+      "count": 4
     }
   },
   "src/kentei-script.ts": {
@@ -260,6 +268,11 @@
     },
     "sonarjs/no-nested-conditional": {
       "count": 4
+    }
+  },
+  "test/jev-grade.test.ts": {
+    "@typescript-eslint/require-await": {
+      "count": 1
     }
   },
   "test/plugin-view.test.mjs": {

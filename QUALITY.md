@@ -4,8 +4,8 @@ Maintained by [ever-better](https://github.com/isamu/ever-better). Numbers are r
 `.ever-better/state.json`; edits outside the notes block are overwritten on the next run.
 
 - Phase: **drain**
-- Frozen: 2026-10-16T21:17:12.473Z
-- Open violations: **378**
+- Frozen: 2026-10-16T21:27:09.287Z
+- Open violations: **383**
 - Rules improved since the ceiling: **0**
 - Everything is at or below its ceiling.
 
@@ -15,13 +15,13 @@ Top to bottom. An unattended run works this list and nothing else.
 
 - [x] **P0 diagnose** — taken 2026-10-16T21:17:35.235Z
 - [ ] **P1 bootstrap** — 1 gap(s) still open
-- [x] **P2 freeze** — frozen 2026-10-16T21:17:12.473Z
-- [ ] **P3 drain** — 378 violations across 36 rules
+- [x] **P2 freeze** — frozen 2026-10-16T21:27:09.287Z
+- [ ] **P3 drain** — 383 violations across 36 rules
   - [ ] `sonarjs/no-os-command-from-path` — 1 left
   - [ ] `@typescript-eslint/consistent-type-definitions` — 1 left
+  - [ ] `sonarjs/reduce-initial-value` — 1 left
   - [ ] `@typescript-eslint/no-unsafe-return` — 1 left
   - [ ] `@typescript-eslint/prefer-optional-chain` — 1 left
-  - [ ] `@typescript-eslint/no-floating-promises` — 1 left
 - [ ] **P4 tighten** — add the next rule tier, then freeze and drain again
 - [ ] **P5 duplication and dead code** — report-only scans; extraction is judgment, not a threshold
 
@@ -33,8 +33,8 @@ Ceiling is the count at the last freeze. It may fall and must never rise.
 | --- | ---: | ---: | ---: | --- |
 | `@typescript-eslint/no-unsafe-member-access` | 61 | 61 | 0 | draining |
 | `@typescript-eslint/restrict-template-expressions` | 60 | 60 | 0 | draining |
-| `@typescript-eslint/no-non-null-assertion` | 48 | 48 | 0 | draining |
-| `@typescript-eslint/consistent-type-assertions` | 45 | 45 | 0 | draining |
+| `@typescript-eslint/no-non-null-assertion` | 52 | 52 | 0 | draining |
+| `@typescript-eslint/consistent-type-assertions` | 46 | 46 | 0 | draining |
 | `@typescript-eslint/no-unnecessary-type-assertion` | 31 | 31 | 0 | draining |
 | `@typescript-eslint/no-unsafe-assignment` | 14 | 14 | 0 | draining |
 | `@typescript-eslint/no-unnecessary-condition` | 13 | 13 | 0 | draining |
@@ -47,18 +47,18 @@ Ceiling is the count at the last freeze. It may fall and must never rise.
 | `sonarjs/cognitive-complexity` | 6 | 6 | 0 | draining |
 | `complexity` | 5 | 5 | 0 | draining |
 | `sonarjs/no-alphabetical-sort` | 5 | 5 | 0 | draining |
+| `@typescript-eslint/require-await` | 5 | 5 | 0 | draining |
 | `@typescript-eslint/no-base-to-string` | 4 | 4 | 0 | draining |
-| `@typescript-eslint/require-await` | 4 | 4 | 0 | draining |
 | `sonarjs/regex-complexity` | 3 | 3 | 0 | draining |
 | `@typescript-eslint/no-unnecessary-type-arguments` | 3 | 3 | 0 | draining |
 | `@typescript-eslint/no-empty-function` | 3 | 3 | 0 | draining |
 | `sonarjs/super-linear-regex` | 2 | 2 | 0 | draining |
 | `max-lines-per-function` | 2 | 2 | 0 | draining |
-| `sonarjs/reduce-initial-value` | 2 | 2 | 0 | draining |
 | `@typescript-eslint/no-confusing-void-expression` | 2 | 2 | 0 | draining |
 | `@typescript-eslint/no-invalid-void-type` | 2 | 2 | 0 | draining |
 | `sonarjs/no-os-command-from-path` | 1 | 1 | 0 | draining |
 | `@typescript-eslint/consistent-type-definitions` | 1 | 1 | 0 | draining |
+| `sonarjs/reduce-initial-value` | 1 | 1 | 0 | draining |
 | `@typescript-eslint/no-unsafe-return` | 1 | 1 | 0 | draining |
 | `@typescript-eslint/prefer-optional-chain` | 1 | 1 | 0 | draining |
 | `@typescript-eslint/no-floating-promises` | 1 | 1 | 0 | draining |

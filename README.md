@@ -178,6 +178,10 @@ player always types the answer; 「どれですか」 or "Which of the following
 asked), the start screen does not talk about Choice / Score questions, each level has enough
 questions, and each sample answer names a real question and a grade it can get.
 
+In the chat plugin, an `explanation` written inside `jev` is moved beside it, a missing one is
+reported (the quiz is shown without it), and schema errors name the question by id
+(`questions.4 (L3-02).explanation`).
+
 A blank answer gets the lowest grade (the lowest-credit Choice label, Score level 0) without being
 sent to JEV, which has graded an empty answer correct.
 

@@ -84,6 +84,11 @@ export function authoringIssues(script: KenteiScript, options: { minPerLevel: nu
       });
     }
   }
+  for (const q of questions) {
+    if (!q.explanation) {
+      issues.push({ where: q.id, blocking: false, message: "no explanation: the player sees no answer after this question is graded" });
+    }
+  }
   for (const line of [meta.intro, ...meta.rules]) {
     if (promisesOptions(line)) {
       issues.push({ where: "meta", blocking: false, message: `「${line}」: every answer is typed in the player's own words; do not promise options or mention Choice / Score questions` });
@@ -142,4 +147,4 @@ A KenteiScript is a quiz the user answers by TYPING each answer in their own wor
   {"id": "L3-01", "level": 3, "question": "夜、植物が酸素を取り込むのはなぜ？", "jev": {"type": "Score", "instructions": "植物が昼も夜も呼吸していると理解しているか評価する。${INJECTION_GUARD.Score}。", "criteria": ["無回答、「わからない」、的外れ", "光がないからとだけ答える", "夜は光合成が止まり呼吸だけが続くと説明", "呼吸は常に続き、昼は光合成の酸素が上回ると説明"]}, "explanation": "呼吸は昼も夜も続き、夜は光合成が止まる。"}]}
 
 ## Then
-Call present with the whole script as "script", or write it to a .json file and pass "path" (better for long scripts). If present lists problems, fix every one and call present again; checkScript is the same check without showing the quiz. Once it is shown, the results come back as the user's next message, each grade with its probability.`;
+Call present with the whole script as "script", or write it to a .json file and pass "path" (better for long scripts). Every question needs "explanation", beside "jev" (not inside it). If present lists problems, fix every one and call present again with the whole script, every question included; checkScript is the same check without showing the quiz. Once it is shown, the results come back as the user's next message, each grade with its probability.`;

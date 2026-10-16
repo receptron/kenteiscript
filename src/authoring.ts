@@ -15,10 +15,11 @@ export const INJECTION_GUARD_EN = {
 
 // Wording that promises the player options to pick from. No runtime shows options: the player
 // always types the answer ("Choice" is the grader choosing a label), so a question that says
-// 「次のうちどれ」 or "Which of the following" cannot be answered as asked.
+// 「次のうちどれ」 or "Which of the following" cannot be answered as asked. Only requests to pick
+// match: 「江戸を選んで本拠にした理由」 or "why a model might choose the wrong class" do not.
 const OPTIONS_WORDING = [
-  /[はがの]どれ(です|でしょう|か?\s*[？?])|どれが(正しい|適切|当てはまる)|選んで|選びなさい|選べ|次のうち|以下のうち|下記のうち|次の中から|選択肢(?![^。！？!?]*(ません|ない|なし))|[0-9０-９一二三四五六]択/,
-  /which of the following|\b(choose|select|pick) (the|one|a|an|from)\b|\bthe (options|choices)\b|multiple[- ]choice/i,
+  /[はがの]どれ(です|でしょう|か?\s*[？?])|どれが(正しい|適切|当てはまる)|(を|から)選んで(ください|下さい|答え)|選びなさい|選べ(?![るばなた])|次のうち|以下のうち|下記のうち|次の中から|選択肢(?![^。！？!?]*(ません|ない|なし))|[0-9０-９一二三四五六]択/,
+  /which of the following|(^|[.:;!?]\s*)(choose|select|pick)\b|\bthe (options|choices) (below|above|given|listed)\b|multiple[- ]choice/i,
 ];
 // The grading types are the author's vocabulary, not the player's.
 const GRADING_TERMS = /Choice ?問題|Score ?問題|記述式|\b(Choice|Score) questions?\b/i;

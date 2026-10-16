@@ -332,3 +332,47 @@ test("a saved JEV game reopened in a host that cannot grade continues in the LLM
   assert.ok(current.viewState.history[0].grade, "the JEV grade already given is kept");
   app.unmount();
 });
+
+test("reopening a saved timed quiz on a question restores it and starts the countdown", async () => {
+  const script = structuredClone(SAMPLE_SCRIPT);
+  script.rules.timeLimitPerQuestion = 30;
+  const first = await mount({ grading: "llm", runtime: null, script });
+  await first.click("kentei-start-button");
+  await first.type("下書き");
+  const saved = first.updates.at(-1);
+  assert.equal(saved.viewState.phase, "question");
+  first.app.unmount();
+
+  const el = document.createElement("div");
+  document.body.appendChild(el);
+  const errors = [];
+  const app = createApp({ render: () => h(plugin.viewComponent, { selectedResult: saved, sendTextMessage() {} }) });
+  app.config.errorHandler = (e) => errors.push(e);
+  app.mount(el);
+  await flush();
+  assert.deepEqual(errors.map(String), []);
+  assert.ok(el.querySelector('[data-testid="kentei-question"]'), "the question is back");
+  assert.equal(el.querySelector('[data-testid="kentei-answer"]').value, "下書き");
+  assert.match(el.querySelector('[data-testid="kentei-timer"]')?.textContent ?? "", /残り 30 秒/);
+  app.unmount();
+});
+
+test("after a failed grade, 採点せずに続ける records the answer that was submitted, not the draft", async () => {
+  const runtime = { dispatch: async () => { throw new Error("JEV down"); } };
+  const v = await mount({ grading: "jev", runtime });
+  await v.click("kentei-start-button");
+  await v.type("書きかけ");
+  // The player leaves 「書きかけ」 in the box and presses わからない; grading that fails.
+  const skip = [...v.el.querySelectorAll("button")].find((b) => b.textContent.trim() === "わからない");
+  skip.dispatchEvent(new dom.window.MouseEvent("click", { bubbles: true }));
+  await flush();
+  assert.ok(v.$("kentei-question").textContent.includes("採点できませんでした"));
+  const cont = [...v.el.querySelectorAll("button")].find((b) => b.textContent.includes("採点せずに続ける"));
+  cont.dispatchEvent(new dom.window.MouseEvent("click", { bubbles: true }));
+  await flush();
+  const last = v.updates.at(-1).viewState;
+  assert.equal(last.mode, "llm");
+  assert.equal(last.history.length, 1);
+  assert.equal(last.history[0].answer, "", "the わからない that was submitted, not the draft 「書きかけ」");
+  v.app.unmount();
+});

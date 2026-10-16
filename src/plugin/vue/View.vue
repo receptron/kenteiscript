@@ -58,7 +58,7 @@
             <button type="button" class="link" @click="continueUngraded">採点せずに続ける</button>
           </p>
           <div class="actions">
-            <button type="button" class="secondary" :disabled="grading" @click="submit('')">わからない</button>
+            <button type="button" class="secondary" :disabled="grading || timedOut" @click="submit('')">わからない</button>
             <button type="button" class="primary" :disabled="grading" data-testid="kentei-submit" @click="submit(state.draft)">
               {{ grading ? "採点中…" : "答える" }}
             </button>
@@ -167,9 +167,18 @@ const error = ref("");
 /** The last attempt to send the results was not delivered (see sendResults). */
 const sendFailed = ref(false);
 let restoring = false;
-// Bumped whenever a different game takes over the View (another result, a restart), so a grading
-// response that arrives afterwards is recognized as stale and dropped.
+// Bumped whenever a different game takes over the View (another result, a restart, unmount), so
+// a grading response that arrives afterwards is recognized as stale and dropped.
 let generation = 0;
+/** The answer whose grading failed, exactly as it was submitted; 採点せずに続ける records this one. */
+let failedAnswer: string | null = null;
+// Timer state (see the per-question time limit below). Declared here, with everything else the
+// setup-time watchers can reach: the immediate watchers run during setup, before later lines.
+const WARN_SECONDS = 10;
+const timeLeft = ref<number | null>(null);
+const timedOut = ref(false);
+let timer: { deadline: number; tick: ReturnType<typeof setInterval> } | null = null;
+let unmounted = false;
 
 function isKenteiData(value: unknown): value is KenteiData {
   return typeof value === "object" && value !== null && "script" in value && typeof (value as { script: unknown }).script === "object";
@@ -190,6 +199,7 @@ function load(result: ToolResult): void {
   error.value = "";
   grading.value = false;
   sendFailed.value = false;
+  failedAnswer = null;
   restoring = false;
 }
 
@@ -233,11 +243,6 @@ const ruleLines = computed(() => {
 // MulmoKentei page: the countdown runs only while a question is open for an answer, stops while the
 // answer is graded and while the feedback is shown, and at 0 submits what is in the answer box.
 // The remaining time is not saved: reopening the chat on a question starts its countdown again.
-const WARN_SECONDS = 10;
-const timeLeft = ref<number | null>(null);
-const timedOut = ref(false);
-let timer: { deadline: number; tick: ReturnType<typeof setInterval> } | null = null;
-
 function stopTimer(): number {
   const left = timer ? Math.max(0, timer.deadline - Date.now()) : 0;
   if (timer) clearInterval(timer.tick);
@@ -277,7 +282,6 @@ watch(
 
 // A closed View must not act any more: invalidate a pending grade (its handlers then neither
 // restart the timer nor submit again) and stop the countdown.
-let unmounted = false;
 onBeforeUnmount(() => {
   unmounted = true;
   generation++;
@@ -344,6 +348,7 @@ async function submit(raw: string): Promise<void> {
   if (!s || !q || grading.value || state.value.phase !== "question") return;
   const answer = normalizeAnswer(raw);
   error.value = "";
+  failedAnswer = null;
   const left = stopTimer();
   if (state.value.mode === "llm" || !runtime) {
     state.value = recordAnswer(s, state.value, answer);
@@ -360,6 +365,7 @@ async function submit(raw: string): Promise<void> {
     if (stillAsked()) state.value = recordAnswer(s, state.value, answer, grade);
   } catch (e) {
     if (!stillAsked()) return;
+    failedAnswer = answer;
     error.value = `採点できませんでした（${e instanceof Error ? e.message : String(e)}）。もう一度「答える」を押してください。`;
     // After time is up the answer stays as it was sent; otherwise the countdown carries on.
     if (!timedOut.value && s.rules.timeLimitPerQuestion) startTimer(left);
@@ -380,9 +386,10 @@ function parseGrade(raw: unknown): AnswerGrade {
 // After a grading failure the player can go on without JEV; the remaining answers then go to the
 // LLM ungraded, in the script's order.
 function continueUngraded(): void {
+  const answer = failedAnswer ?? state.value.draft;
   state.value = { ...state.value, mode: "llm" };
   error.value = "";
-  void submit(state.value.draft);
+  void submit(answer);
 }
 
 function next(): void {

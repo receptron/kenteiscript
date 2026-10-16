@@ -1,0 +1,24 @@
+{
+  // Type-checks the chat plugin (src/plugin/, with its .vue files) and emits its declarations into
+  // dist/ (`npm run build:plugin`). The root tsconfig.json checks the Worker and scripts.
+  "compilerOptions": {
+    "target": "ES2022",
+    "module": "ESNext",
+    "moduleResolution": "Bundler",
+    "lib": ["ES2022", "DOM", "DOM.Iterable"],
+    "types": ["node"],
+    "strict": true,
+    "noUncheckedIndexedAccess": true,
+    "exactOptionalPropertyTypes": true,
+    "noUnusedLocals": true,
+    "noUnusedParameters": true,
+    "allowImportingTsExtensions": true,
+    "isolatedModules": true,
+    "skipLibCheck": true,
+    "declaration": true,
+    "emitDeclarationOnly": true,
+    "outDir": "dist/types",
+    "rootDir": "src"
+  },
+  "include": ["src/plugin/**/*.ts", "src/plugin/**/*.vue", "src/env.d.ts"]
+}

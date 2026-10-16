@@ -1,6 +1,6 @@
 # KenteiScript
 
-**A small JSON language for adaptive quizzes, written by an LLM, where players answer in their
+**A small JSON language for quizzes and tests, written by an LLM, where people answer in their
 own words and a decision model grades them.**
 
 *Kentei*（検定）is Japanese for a certification test: questions at graded levels, ending in a grade
@@ -33,6 +33,30 @@ can mix two kinds of question:
 - **Written questions** (`Score`): graded on a rubric, *0–3*. A question can have no single right
   answer; it then scores how well the player reasons, not which conclusion they reach.
 
+## Where it fits
+
+Written answers graded against plain-language criteria show what someone actually understands,
+not just what they can pick from a list. That is useful well beyond certification-style quizzes:
+
+| use | how KenteiScript helps | today |
+|---|---|---|
+| **Certification-style quizzes**（検定） | Levels that adapt to the player, a grade and a title at the end. | Supported — the samples. |
+| **Classroom comprehension checks** | After a lesson, an LLM drafts a short script from the lesson material; written questions show whether students can explain the idea, not only recall the term, and adaptive levels place each student. | Supported, with anonymous results. |
+| **End-of-term exams** | The same rubric applied to every answer, without a teacher's fatigue at the 200th paper; open questions graded on reasoning. | Needs the additions below. |
+| **Hiring tests**（入社試験） | Written reasoning questions with rubrics, graded consistently across all candidates. | Needs the additions below. |
+
+What exams and hiring tests need, and the language and MulmoKentei don't have yet:
+
+- **A fixed mode**: everyone gets the same questions in the same order, instead of adaptive levels.
+- **Who took it**: named examinees, and results per person rather than an anonymous chart.
+- **Review**: a list of every answer and its grade for the teacher or interviewer, with the
+  uncertain ones flagged. JEV returns a probability for each grade, so an answer whose top grade
+  is below, say, 0.6 can be marked for a human to check.
+- **Time limits and sittings**: a window in which the test can be taken.
+
+For any decision that matters to a person — a grade on a report card, a job offer — use the model's
+grades as a first pass that a human reviews, not as the final word.
+
 This repository holds:
 
 - **the KenteiScript language**, defined as a Zod schema ([`src/kentei-script.ts`](src/kentei-script.ts));
@@ -40,12 +64,15 @@ This repository holds:
 - **sample KenteiScripts**: 戦国検定, 機械学習検定, 日本語検定 and a small format example;
 - **MulmoKentei**, a sample runtime: a web service that plays KenteiScripts on Cloudflare Workers + D1.
 
-> 日本語：KenteiScript は、LLM が書くことを前提にした、検定のための小さな DSL（JSON）です。「DSL as Harness」の考え方で作りました。
+> 日本語：KenteiScript は、LLM が書くことを前提にした、検定や試験のための小さな DSL（JSON）です。「DSL as Harness」の考え方で作りました。
 > 問題と採点の基準（ふつうの言葉で書く）という自由度の高い部分を LLM が書き、形式の検査、出題の決まり、点数、記録といった
 > 正確さが要る部分は、それを動かすふつうのコードが受け持ちます。プレイヤーは選択肢から選ばず、自分の言葉で答え、判定モデル
 > （TypeSafe JEV）が採点します。知識問題（正解・惜しい・不正解）と、考えて書く記述問題（0〜3 の段階評価）を混ぜられ、
 > 正解のない問題も考え方で評価できます。このリポジトリには、言語の定義（Zod スキーマ）、採点のコード、LLM が書いたサンプルの
 > KenteiScript（戦国検定・機械学習検定・日本語検定）と、それを動かすサンプルサービス **MulmoKentei（マルモ検定）** が入っています。
+> 検定だけでなく、授業のあとの理解度の確認、期末試験、会社の入社試験などにも使えるように育てていきます。理解度の確認は今の
+> 仕組みで使えます。試験に使うには、全員に同じ問題を出す固定モード、受験者ごとの結果、採点の見直し（確信度の低い採点に印を
+> つける）、時間制限が必要です（今後の課題）。人の評価に関わる判断では、モデルの採点を最終結果とせず、人が見直してください。
 
 ## The format
 

@@ -5,11 +5,16 @@ format by example, how it works) live in **README.md** — read it for anything 
 
 ## What this repo is
 
-The subject is **KenteiScript**, a small JSON language for adaptive quizzes that an LLM writes
+The subject is **KenteiScript**, a small JSON language for quizzes and tests that an LLM writes
 (see the next section), built on the *DSL as Harness* philosophy. The repo holds the format
 (a Zod schema), the grading code, sample KenteiScripts, and **MulmoKentei**, a sample service that
 runs them. MulmoKentei is an example of using KenteiScript, not the product: describe things
 script-first, and keep the format and the grading free of anything only the service needs.
+
+It is meant for more than 検定: classroom comprehension checks, end-of-term exams, hiring tests.
+Today the language only describes adaptive games; exams still need a fixed mode, named takers,
+per-person results, review of uncertain grades and time limits (README, *Where it fits*). Design
+changes with those uses in mind, and do not claim them as supported until they are.
 
 ## Stack
 - MulmoKentei is a Cloudflare Worker (`src/index.ts`) + D1, serving one static page

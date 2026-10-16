@@ -2,7 +2,26 @@
   "name": "kenteiscript",
   "version": "0.1.0",
   "description": "KenteiScript: a small JSON language for quizzes and tests, written by an LLM, with answers in the taker's own words graded by a decision model (TypeSafe JEV). Includes MulmoKentei, a sample runtime on Cloudflare Workers + D1",
-  "private": true,
+  "keywords": [
+    "kenteiscript",
+    "quiz",
+    "test",
+    "exam",
+    "dsl",
+    "llm",
+    "decision-model",
+    "gui-chat-protocol",
+    "mcp"
+  ],
+  "author": "Satoshi Nakajima",
+  "homepage": "https://github.com/receptron/kenteiscript#readme",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/receptron/kenteiscript.git"
+  },
+  "bugs": {
+    "url": "https://github.com/receptron/kenteiscript/issues"
+  },
   "type": "module",
   "license": "MIT",
   "main": "./dist/index.js",
@@ -36,7 +55,8 @@
     "deploy": "node scripts/remote.mjs deploy",
     "remote": "node scripts/remote.mjs",
     "build:plugin": "vite build --config vite.plugin.config.ts && vue-tsc -p tsconfig.plugin.json && node scripts/gen-plugin-types.mjs",
-    "test:plugin": "node --test test/plugin-view.test.mjs test/plugin-standalone.test.mjs"
+    "test:plugin": "node --test test/plugin-view.test.mjs test/plugin-standalone.test.mjs",
+    "prepublishOnly": "npm run build:plugin && npm run test:plugin"
   },
   "engines": {
     "node": ">=22.18"

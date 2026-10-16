@@ -52,7 +52,9 @@ What exams and hiring tests need, and the language and MulmoKentei don't have ye
 - **Review**: a list of every answer and its grade for the teacher or interviewer, with the
   uncertain ones flagged. JEV returns a probability for each grade, so an answer whose top grade
   is below, say, 0.6 can be marked for a human to check.
-- **A time limit per question**, kept by the view ([#1](https://github.com/receptron/kenteiscript/issues/1)).
+
+Already there: **a time limit per question**, kept by the view (`rules.timeLimitPerQuestion`,
+[#1](https://github.com/receptron/kenteiscript/issues/1)). There is no limit for a whole test.
 
 In chat, a KenteiScript can also be written by the LLM on the spot and taken right there:
 [#2](https://github.com/receptron/kenteiscript/issues/2) proposes a gui-chat-protocol plugin for
@@ -76,7 +78,7 @@ This repository holds:
 > KenteiScript（戦国検定・機械学習検定・日本語検定）と、それを動かすサンプルサービス **MulmoKentei（マルモ検定）** が入っています。
 > 検定だけでなく、授業のあとの理解度の確認、期末試験、会社の入社試験などにも使えるように育てていきます。理解度の確認は今の
 > 仕組みで使えます。試験に使うには、全員に同じ問題を出す固定モード、受験者ごとの結果、採点の見直し（確信度の低い採点に印を
-> つける）、1 問ごとの時間制限（#1）が必要です（今後の課題）。
+> つける）が必要です（今後の課題）。1 問ごとの時間制限（#1）は使えます。
 > MulmoClaude や MulmoTerminal の中で、LLM がその場で作った KenteiScript に答え、結果を LLM に返すプラグインも提案中です（#2）。人の評価に関わる判断では、モデルの採点を最終結果とせず、人が見直してください。
 
 ## The format
@@ -99,6 +101,7 @@ definition, with a comment on every field.
   "rules": {
     "questionsPerGame": 10,
     "startLevel": 3, "minLevel": 1, "maxLevel": 5,
+    "timeLimitPerQuestion": 60,               // optional: seconds for each question; no limit if absent
     "credit": {
       "Choice": { "correct": 1, "close": 0.5, "wrong": 0 },
       "Score": [0, 0, 0.5, 1]                 // credit for levels 0..3
@@ -142,6 +145,11 @@ definition, with a comment on every field.
 - A game asks `questionsPerGame` questions, starting at `startLevel`.
 - A full-credit answer (`correct`, or the top Score level) moves the next question **up** a
   level; half credit (`close`, or level 2) keeps the level; anything else moves it **down**.
+- With `timeLimitPerQuestion`, each question has that many seconds. The view keeps the time, not
+  the server: it shows the time left (and the limit on the start screen), and when time is up it
+  submits what is in the answer box, as if the player had pressed 答える (an empty box is no
+  answer). The clock stops while the answer is graded and the feedback is shown. There is no limit
+  for the whole game, and a player who edits the page can get around it.
 - Each answer earns `level × credit` points. The total picks the first grade in `grades` whose
   `min` it reaches, and that grade's `title` is the player's title.
 - JEV sees only `{ question, answer }` plus the question's `instructions` and `criteria`. A player
@@ -208,7 +216,7 @@ Run it after every change to criteria; nothing else can tell you a rubric grades
 | `quizzes/sengoku.json` | 戦国検定 (Japan's Sengoku period) | 110 |
 | `quizzes/ml.json` | 機械学習検定 (machine learning) | 85 |
 | `quizzes/nihongo.json` | 日本語検定 (the Japanese language: idioms, keigo, readings, grammar, history) | 85 |
-| `quizzes/example.json` | 日本地理ミニ検定, a small format example (`hidden`) | 15 |
+| `quizzes/example.json` | 日本地理ミニ検定, a small format example (`hidden`, 60 seconds per question) | 15 |
 
 Each has a `.tests.json` with sample answers that JEV grades as expected.
 

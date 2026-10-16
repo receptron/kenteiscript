@@ -18,6 +18,7 @@
     "startLevel": 2,
     "minLevel": 1,
     "maxLevel": 3,
+    "timeLimitPerQuestion": 60,
     "credit": {
       "Choice": {
         "correct": 1,

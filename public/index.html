@@ -106,7 +106,12 @@
   .progress span.r-mid { background: var(--mid); }
   .progress span.r-bad { background: var(--bad); }
 
-  .meta { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 10px; font-size: 13px; color: var(--ink-soft); }
+  .meta { display: flex; flex-wrap: wrap; gap: 4px 12px; justify-content: space-between; align-items: baseline; margin-bottom: 10px; font-size: 13px; color: var(--ink-soft); }
+  .timer {
+    font-variant-numeric: tabular-nums; font-weight: 700; color: var(--ink);
+    border: 1px solid var(--line); border-radius: 999px; padding: 0 10px; background: var(--bg);
+  }
+  .timer.warn { color: var(--bad); border-color: var(--bad); }
   .stars { letter-spacing: .15em; color: var(--accent); font-size: 14px; }
   .stars .off { color: var(--line); }
   .question { font: 700 20px/1.65 "Shippori Mincho", serif; margin: 0 0 8px; }
@@ -188,6 +193,7 @@
     <div id="progress" class="progress" aria-hidden="true"></div>
     <div class="meta">
       <span id="q-count"></span>
+      <span id="q-timer" class="timer hidden" role="timer" aria-live="off"></span>
       <span>難しさ <span id="q-stars" class="stars"></span></span>
     </div>
     <p id="q-text" class="question"></p>
@@ -240,6 +246,42 @@ const CHOICE_VIEW = {
 
 let bank = null;
 let game = null;
+
+// Per-question time limit (rules.timeLimitPerQuestion, seconds), kept here in the view. The
+// countdown runs only while a question is open for an answer: it stops while the answer is graded
+// and while the feedback is shown, and starts again with the next question.
+const WARN_SECONDS = 10;
+let timer = null; // { deadline, tick } while running
+
+function stopTimer() {
+  if (timer) clearInterval(timer.tick);
+  timer = null;
+}
+
+function renderTimer(left) {
+  const sec = Math.max(0, Math.ceil(left / 1000));
+  const el = $("q-timer");
+  el.textContent = sec ? `残り ${sec} 秒` : "時間切れ";
+  el.classList.toggle("warn", sec <= WARN_SECONDS);
+  // Announce only in the warning period, so screen readers are not told every second.
+  el.setAttribute("aria-live", sec <= WARN_SECONDS ? "polite" : "off");
+}
+
+function startTimer(seconds) {
+  stopTimer();
+  const deadline = Date.now() + seconds * 1000;
+  const update = () => {
+    const left = deadline - Date.now();
+    renderTimer(left);
+    if (left <= 0) {
+      stopTimer();
+      // Time is up: submit what is in the box, exactly as if 答える were pressed.
+      submit($("answer").value.trim(), { timedOut: true });
+    }
+  };
+  timer = { deadline, tick: setInterval(update, 200) };
+  renderTimer(seconds * 1000);
+}
 
 function stars(level) {
   return "★".repeat(level) + `<span class="off">${"★".repeat(5 - level)}</span>`;
@@ -304,11 +346,22 @@ function showQuestion() {
   $("answer-actions").classList.remove("hidden");
   $("feedback").classList.add("hidden");
   $("q-error").classList.add("hidden");
+  game.busy = false;
+  game.timedOut = false;
+  const limit = bank.rules.timeLimitPerQuestion;
+  $("q-timer").classList.toggle("hidden", !limit);
+  if (limit) startTimer(limit);
   renderProgress();
   ta.focus();
 }
 
-async function submit(answer) {
+async function submit(answer, { timedOut = false } = {}) {
+  // One submission per question: the timer and the 答える button can fire at the same moment.
+  if (!game || game.busy || game.history.some((h) => h.q === game.current)) return;
+  game.busy = true;
+  if (timedOut) game.timedOut = true;
+  const left = timer ? timer.deadline - Date.now() : 0;
+  stopTimer();
   const q = game.current;
   $("submit-btn").disabled = $("skip-btn").disabled = true;
   $("answer").disabled = true;
@@ -327,8 +380,11 @@ async function submit(answer) {
   } catch (e) {
     $("q-error").textContent = `${e.message}。もう一度「答える」を押してください。`;
     $("q-error").classList.remove("hidden");
-    $("answer").disabled = false;
+    // After time is up the answer stays as it was sent; otherwise the countdown carries on.
+    $("answer").disabled = game.timedOut;
+    if (!game.timedOut && bank.rules.timeLimitPerQuestion) startTimer(Math.max(0, left) / 1000);
   } finally {
+    game.busy = false;
     $("submit-btn").disabled = $("skip-btn").disabled = false;
     $("submit-btn").textContent = "答える";
   }
@@ -380,6 +436,7 @@ function renderDistribution(grade, stats) {
 }
 
 async function showResult() {
+  stopTimer();
   $("next-btn").disabled = true;
   let finished = null;
   try {
@@ -433,12 +490,15 @@ async function startGame() {
     $("start-btn").disabled = false;
   }
   $("start-error").classList.add("hidden");
+  stopTimer();
   game = {
     id,
     level: bank.rules.startLevel,
     used: new Set(),
     history: [],
     points: 0,
+    busy: false,
+    timedOut: false,
     honor: document.querySelector("input[name=honor]:checked")?.value || "",
   };
   $("start").classList.add("hidden");
@@ -450,6 +510,7 @@ async function startGame() {
 
 $("start-btn").onclick = startGame;
 $("again-btn").onclick = () => {
+  stopTimer();
   $("result").classList.add("hidden");
   $("start").classList.remove("hidden");
   $("picker").classList.toggle("hidden", quizList.length < 2);
@@ -472,7 +533,11 @@ function renderIntro(meta, rules) {
   $("quiz-subtitle").textContent = meta.subtitle || "";
   $("intro-heading").textContent = meta.introHeading || "";
   $("intro").textContent = meta.intro || "";
-  $("rules").innerHTML = (meta.rules || []).map((r) => `<li>${esc(r)}</li>`).join("");
+  const ruleLines = [...(meta.rules || [])];
+  if (rules.timeLimitPerQuestion) {
+    ruleLines.push(`1 問 ${rules.timeLimitPerQuestion} 秒。時間になると、そのとき書いてある答えで自動的に答えます。`);
+  }
+  $("rules").innerHTML = ruleLines.map((r) => `<li>${esc(r)}</li>`).join("");
   // A grade with titleChoices (e.g. 歴女 / 歴男) lets the player pick how that title reads.
   const top = rules.grades.find((g) => g.titleChoices);
   if (top) {
@@ -495,6 +560,7 @@ function renderPicker() {
 }
 
 async function loadQuiz(id) {
+  stopTimer();
   $("start-btn").disabled = true;
   $("start-btn").textContent = "読み込み中…";
   $("start-error").classList.add("hidden");

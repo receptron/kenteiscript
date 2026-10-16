@@ -13,7 +13,8 @@ script-first, and keep the format and the grading free of anything only the serv
 
 It is meant for more than 検定: classroom comprehension checks, end-of-term exams, hiring tests.
 Today the language only describes adaptive games; exams still need a fixed mode, named takers,
-per-person results, review of uncertain grades and time limits (README, *Where it fits*). Design
+per-person results and review of uncertain grades (README, *Where it fits*); a per-question time
+limit (`rules.timeLimitPerQuestion`) is supported, kept by the page, not the server. Design
 changes with those uses in mind, and do not claim them as supported until they are.
 
 ## Stack

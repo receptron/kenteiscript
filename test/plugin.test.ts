@@ -285,8 +285,11 @@ test("questions that promise options, and a start screen that talks about Choice
   assert.match(r.message, /- L2-01: the question asks the player to pick from options/);
   assert.match(r.message, /- meta: 「Choice問題は4択、Score問題は記述式です。」/);
   const promised = clone(SAMPLE_SCRIPT);
-  promised.meta.rules = ["全問4択です。", "Each question is multiple choice."];
-  assert.equal((((await present(promised)).message.match(/- meta: /g)) ?? []).length, 2);
+  promised.meta.rules = ["全問4択です。", "Each question is multiple choice.", "全問4択で、時間制限はありません。"];
+  assert.equal((((await present(promised)).message.match(/- meta: /g)) ?? []).length, 3);
+  const topic = clone(SAMPLE_SCRIPT);
+  topic.questions[0]!.question = "Explain one disadvantage of multiple-choice tests.";
+  assert.ok((await present(topic)).data);
   // Saying there are no options is fine, as the sample quizzes do.
   const fine = clone(SAMPLE_SCRIPT);
   fine.meta.rules = [
@@ -298,7 +301,7 @@ test("questions that promise options, and a start screen that talks about Choice
   fine.questions[0]!.question = "写真を「猫」「犬」のどれかに分けるタスクを何という？";
   fine.questions[1]!.question = "家康が江戸を選んで本拠にした理由は？";
   fine.questions[2]!.question = "Explain why a neural network might choose the wrong class.";
-  fine.questions[3]!.question = "Explain one disadvantage of multiple-choice tests.";
+  fine.questions[3]!.question = "SELECT COUNT(*) FROM users; このSQLは何を返しますか？";
   assert.ok((await present(fine)).data, (await present(fine)).message);
   const imperative = clone(SAMPLE_SCRIPT);
   imperative.questions[0]!.question = "Choose the correct past tense: 'She ___ to school yesterday.'";

@@ -16,23 +16,27 @@ export const INJECTION_GUARD_EN = {
 // No runtime shows options: the player always types the answer ("Choice" is the grader choosing a
 // label). Two checks, each kept narrow because both block present:
 //   - a question must not ASK the player to pick (「最も正しいものはどれですか」「選んでください」,
-//     "Which of the following", a sentence starting "Choose"). Mentions are fine: 「江戸を選んで
+//     "Which of the following", a sentence starting "Choose the"). Mentions are fine: 「江戸を選んで
 //     本拠にした理由」, "why a model might choose the wrong class", "the drawbacks of multiple-choice
-//     tests";
+//     tests", SQL's SELECT;
 //   - the start screen must not promise options (「4択」, "multiple choice", 「選択肢」) unless the
-//     sentence denies them (「選択肢はありません」, "There are no multiple-choice questions"), and
+//     same clause denies them (「選択肢はありません」, "There are no multiple-choice questions"), and
 //     must not use the grading types' names, which are the author's vocabulary.
 const ASKS_TO_PICK = [
   /[はがの]どれ(です|でしょう|か?\s*[？?])|どれが(正しい|適切|当てはまる)|(を|から)選んで(ください|下さい|答え)|選びなさい|選べ(?![るばなた])|次のうち|以下のうち|下記のうち|次の中から/,
-  /which of the following|(^|[.:;!?]\s*)(choose|select|pick)\b|\bthe (options|choices) (below|above|given|listed)\b/i,
+  /[Ww]hich of the following|\bthe (options|choices) (below|above|given|listed)\b/,
+  // An imperative, capitalised and followed by an ordinary word: not SQL's SELECT.
+  /(^|[.:;!?]\s*)(Choose|Select|Pick) (the|one|a|an|from|which|all|two|three)\b/,
 ];
 const OFFERS_OPTIONS = /[0-9０-９一二三四五六]択|選択肢|multiple[- ]choice|\b(options|choices) to (choose|pick) from\b/i;
 const DENIES = /ません|ない|なし|ではなく|\b(no|not|never|without|none)\b|n't/i;
 const GRADING_TERMS = /(?<![-\w])(Choice|Score) ?(問題|questions?\b)/;
 
 const asksToPick = (question: string) => ASKS_TO_PICK.some((re) => re.test(question));
+// Judged clause by clause, so a denial counts only next to the options it denies: 「全問4択で、
+// 時間制限はありません」 still promises options.
 const promisesOptions = (line: string) =>
-  line.split(/[。．！？!?;；]|\.(?:\s|$)/).some((sentence) => OFFERS_OPTIONS.test(sentence) && !DENIES.test(sentence)) || GRADING_TERMS.test(line);
+  line.split(/[。．！？!?;；、，,]|\.(?:\s|$)/).some((clause) => OFFERS_OPTIONS.test(clause) && !DENIES.test(clause)) || GRADING_TERMS.test(line);
 
 export interface AuthoringIssue {
   /** Where: a question id, "meta" or "rules". */

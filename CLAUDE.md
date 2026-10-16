@@ -1,11 +1,19 @@
-# CLAUDE.md — mulmo-kentei
+# CLAUDE.md — kenteiscript
 
 Working notes for AI coding agents in this repo. Human-facing docs (what it is, the KenteiScript
 format by example, how it works) live in **README.md** — read it for anything not covered here.
 
+## What this repo is
+
+The subject is **KenteiScript**, the quiz format (see the next section). The repo holds the format
+(a Zod schema), the grading code, sample KenteiScripts, and **MulmoKentei**, a sample service that
+runs them. MulmoKentei is an example of using KenteiScript, not the product: describe things
+script-first, and keep the format and the grading free of anything only the service needs.
+
 ## Stack
-- A Cloudflare Worker (`src/index.ts`) + D1, serving one static page (`public/index.html`, plain
-  JS, no build step). Answers are graded by TypeSafe JEV, a decision model (`src/grading.ts`).
+- MulmoKentei is a Cloudflare Worker (`src/index.ts`) + D1, serving one static page
+  (`public/index.html`, plain JS, no build step). Answers are graded by TypeSafe JEV, a decision
+  model (`src/grading.ts`).
 - `src/grading.ts` is shared with the Node scripts, which import the `.ts` file directly through
   Node's type stripping. Keep it free of Worker and Node APIs. Node 22.18+ is required for that.
 - Package manager: **npm** (package-lock.json).

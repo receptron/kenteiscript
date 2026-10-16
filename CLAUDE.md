@@ -81,7 +81,8 @@ deploy, so a bad file fails the build, not a game. Consequences:
   that offers options, questions per level, reachable grades) are in `src/authoring.ts`
   (`authoringIssues`), not the schema; both `scripts/check-quizzes.mjs` (10 per level, plus the
   sample answers) and the chat plugin's checkScript and present (1 per level) apply them, and
-  present refuses to show a script with a blocking one (`blocking`: the guard, option wording).
+  present refuses to show a script with a blocking one (`blocking`: the guard, a question that
+  asks to pick from options).
 - `rules.credit` is optional; the schema's default (and `withDefaultCredit` in `src/game.ts`, which
   the Worker applies to the bundled quizzes) is Choice correct/close/wrong, Score [0, 0, 0.5, 1].
 

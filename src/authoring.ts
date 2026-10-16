@@ -14,7 +14,7 @@ export const INJECTION_GUARD_EN = {
 } as const;
 
 // No runtime shows options: the player always types the answer ("Choice" is the grader choosing a
-// label). Two checks, each kept narrow because both block present:
+// label). Two checks; the first blocks present, so it matches only explicit requests:
 //   - a question must not ASK the player to pick (「最も正しいものはどれですか」「選んでください」,
 //     "Which of the following", a sentence starting "Choose the"). Mentions are fine: 「江戸を選んで
 //     本拠にした理由」, "why a model might choose the wrong class", "the drawbacks of multiple-choice
@@ -29,7 +29,7 @@ const ASKS_TO_PICK = [
   /(^|[.:;!?]\s*)(Choose|Select|Pick) (the|one|a|an|from|which|all|two|three)\b/,
 ];
 const OFFERS_OPTIONS = /[0-9０-９一二三四五六]択|選択肢|multiple[- ]choice|\b(options|choices) to (choose|pick) from\b/i;
-const DENIES = /ません|ない|なし|ではなく|\b(no|not|never|without|none)\b|n't/i;
+const DENIES = /ません|ない|なし|なく|ず(?:に|$)|\b(no|not|never|without|none)\b|n't/i;
 const GRADING_TERMS = /(?<![-\w])(Choice|Score) ?(問題|questions?\b)/;
 
 const asksToPick = (question: string) => ASKS_TO_PICK.some((re) => re.test(question));
@@ -44,9 +44,10 @@ export interface AuthoringIssue {
   message: string;
   /**
    * Whether the chat plugin's present refuses to show the script for it: a missing injection
-   * guard, or wording that offers options, makes a quiz that cannot be graded or answered as
-   * written. The others (a level with no question, an unreachable grade) are reported but shown
-   * anyway: a game falls back to the nearest level, and maxPoints is an estimate, not a proof.
+   * guard, or a question that asks the player to pick from options, makes a quiz that cannot be
+   * graded or answered as written. The others are reported but shown anyway: start-screen wording
+   * is judged by a heuristic that free text can always outwit, a game falls back to the nearest
+   * level, and maxPoints is an estimate, not a proof.
    */
   blocking: boolean;
 }
@@ -79,7 +80,7 @@ export function authoringIssues(script: KenteiScript, options: { minPerLevel: nu
   }
   for (const line of [meta.intro, ...meta.rules]) {
     if (promisesOptions(line)) {
-      issues.push({ where: "meta", blocking: true, message: `「${line}」: every answer is typed in the player's own words; do not promise options or mention Choice / Score questions` });
+      issues.push({ where: "meta", blocking: false, message: `「${line}」: every answer is typed in the player's own words; do not promise options or mention Choice / Score questions` });
     }
   }
   const perLevel = new Map<number, number>();

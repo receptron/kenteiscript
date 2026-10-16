@@ -280,13 +280,17 @@ test("questions that promise options, and a start screen that talks about Choice
   picky.questions[1]!.question = "Which of the following is made in photosynthesis?";
   picky.meta.rules = ["Choice問題は4択、Score問題は記述式です。"];
   const r = await present(picky);
-  assert.equal(r.data, undefined);
+  assert.equal(r.data, undefined, "questions that ask to pick block present");
   assert.match(r.message, /- L1-01: the question asks the player to pick from options/);
   assert.match(r.message, /- L2-01: the question asks the player to pick from options/);
   assert.match(r.message, /- meta: 「Choice問題は4択、Score問題は記述式です。」/);
   const promised = clone(SAMPLE_SCRIPT);
   promised.meta.rules = ["全問4択です。", "Each question is multiple choice.", "全問4択で、時間制限はありません。"];
-  assert.equal((((await present(promised)).message.match(/- meta: /g)) ?? []).length, 3);
+  // Start-screen wording is a heuristic: reported (checkScript, and with the shown quiz), never blocking.
+  assert.equal((((await check({ script: promised })).message.match(/- meta: /g)) ?? []).length, 3);
+  const shownAnyway = await present(promised);
+  assert.ok(shownAnyway.data);
+  assert.match(shownAnyway.message, /Not fixed, shown anyway: meta: 「全問4択です。」/);
   const topic = clone(SAMPLE_SCRIPT);
   topic.questions[0]!.question = "Explain one disadvantage of multiple-choice tests.";
   assert.ok((await present(topic)).data);
@@ -296,13 +300,17 @@ test("questions that promise options, and a start screen that talks about Choice
     "選択肢はありません。答えは自分の言葉で書いてください。",
     "選択肢は表示されません。",
     "4択ではなく、記述式です。",
+    "選択肢はなく、答えはすべて自分の言葉で書いてください。",
+    "選択肢を使わずに答えてください。",
     "There are no multiple-choice questions; type each answer.",
   ];
   fine.questions[0]!.question = "写真を「猫」「犬」のどれかに分けるタスクを何という？";
   fine.questions[1]!.question = "家康が江戸を選んで本拠にした理由は？";
   fine.questions[2]!.question = "Explain why a neural network might choose the wrong class.";
   fine.questions[3]!.question = "SELECT COUNT(*) FROM users; このSQLは何を返しますか？";
-  assert.ok((await present(fine)).data, (await present(fine)).message);
+  const fineShown = await present(fine);
+  assert.ok(fineShown.data, fineShown.message);
+  assert.doesNotMatch(fineShown.message, /Not fixed/);
   const imperative = clone(SAMPLE_SCRIPT);
   imperative.questions[0]!.question = "Choose the correct past tense: 'She ___ to school yesterday.'";
   imperative.questions[1]!.question = "最も近い説明を選んでください。";

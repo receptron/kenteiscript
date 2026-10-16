@@ -263,9 +263,10 @@ way as presentForm (`@mulmoclaude/form-plugin`), in `src/plugin/`:
     samples: the injection guard, no option-picking wording, a question at every level, every
     grade reachable);
   - `present`: checks the script the same way and shows the View unless a question lacks the
-    injection guard or offers options (then it shows nothing and comes back with every problem); it
-    returns at once with `instructions` to wait for the results. The other problems (a level with
-    no question, a grade above the estimated maximum) are reported with the shown quiz.
+    injection guard or asks the player to pick from options (then it shows nothing and comes back
+    with every problem); it returns at once with `instructions` to wait for the results. The other
+    problems (start-screen wording, a level with no question, a grade above the estimated maximum)
+    are reported with the shown quiz.
 
   Every step before the quiz is shown (getGuide, getSchema, checkScript, a refusal) returns
   `instructions` to make the next call in the same turn, with `instructionsRequired: true`. A host

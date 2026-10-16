@@ -1,6 +1,6 @@
 {
   "name": "kenteiscript",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "KenteiScript: a small JSON language for quizzes and tests, written by an LLM, with answers in the taker's own words graded by a decision model (TypeSafe JEV). Includes MulmoKentei, a sample runtime on Cloudflare Workers + D1",
   "keywords": [
     "kenteiscript",

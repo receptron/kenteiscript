@@ -335,6 +335,106 @@ test("sendTextMessage returning false (no terminal took it) leaves the results u
   app.unmount();
 });
 
+test("an async sendTextMessage is awaited: Promise<false> or a rejection leaves the results unsent; Promise<true> sends", async () => {
+  // A host like MulmoChat, whose sendTextMessage is async and resolves to false when the session is gone.
+  const tries = [];
+  let settle;
+  const el = document.createElement("div");
+  document.body.appendChild(el);
+  const result = await executeKentei({}, { action: "present", script: structuredClone(SAMPLE_SCRIPT) });
+  let current = { ...result, toolName: "manageKenteiScript", uuid: "s-async" };
+  const app = createApp({
+    render: () =>
+      h(plugin.viewComponent, {
+        selectedResult: current,
+        sendTextMessage: (text) => {
+          tries.push(text);
+          return new Promise((resolve, reject) => (settle = { resolve, reject }));
+        },
+        onUpdateResult: (r) => (current = r),
+      }),
+  });
+  app.provide(PLUGIN_RUNTIME_KEY, correctRuntime());
+  app.mount(el);
+  await flush();
+  const $ = (id) => el.querySelector(`[data-testid="${id}"]`);
+  const click = async (id) => {
+    $(id).dispatchEvent(new dom.window.MouseEvent("click", { bubbles: true }));
+    await flush();
+  };
+  await click("kentei-start-button");
+  for (let i = 0; i < 4; i++) {
+    await click("kentei-submit");
+    await click("kentei-next");
+  }
+  assert.equal(tries.length, 1, "sent automatically at the end");
+  assert.equal($("kentei-sent").textContent, "", "not reported as sent while the Promise is pending");
+  assert.equal($("kentei-send").disabled, true, "the button waits for the pending send");
+  await click("kentei-send");
+  assert.equal(tries.length, 1, "no second send while one is in flight");
+
+  settle.resolve(false);
+  await flush();
+  assert.equal($("kentei-sent").textContent, "", "Promise<false> is not delivered");
+  assert.ok($("kentei-send-failed"), "the failure is shown");
+  assert.equal($("kentei-send").disabled, false, "the resend button is usable again");
+  assert.equal(current.viewState.sent, false);
+
+  await click("kentei-send");
+  assert.equal(tries.length, 2);
+  settle.reject(new Error("socket closed"));
+  await flush();
+  assert.ok($("kentei-send-failed"), "a rejected Promise is not delivered either");
+  assert.equal(current.viewState.sent, false);
+
+  await click("kentei-send");
+  assert.equal(tries.length, 3);
+  assert.equal(tries[2], tries[0], "the same results are sent again");
+  settle.resolve(true);
+  await flush();
+  assert.match($("kentei-sent").textContent, /送りました/);
+  assert.equal($("kentei-send"), null);
+  assert.equal($("kentei-send-failed"), null);
+  assert.equal(current.viewState.sent, true);
+  app.unmount();
+});
+
+test("clearing selectedResult while a send is pending: the late result does not mark the old game as sent", async () => {
+  let settle;
+  const el = document.createElement("div");
+  document.body.appendChild(el);
+  const result = await executeKentei({}, { action: "present", script: structuredClone(SAMPLE_SCRIPT) });
+  const host = reactive({ current: { ...result, toolName: "manageKenteiScript", uuid: "s-clear" } });
+  const app = createApp({
+    render: () =>
+      h(plugin.viewComponent, {
+        selectedResult: host.current,
+        sendTextMessage: () => new Promise((resolve) => (settle = resolve)),
+        onUpdateResult: (r) => (host.current = r),
+      }),
+  });
+  app.provide(PLUGIN_RUNTIME_KEY, correctRuntime());
+  app.mount(el);
+  await flush();
+  const $ = (id) => el.querySelector(`[data-testid="${id}"]`);
+  const click = async (id) => {
+    $(id).dispatchEvent(new dom.window.MouseEvent("click", { bubbles: true }));
+    await flush();
+  };
+  await click("kentei-start-button");
+  for (let i = 0; i < 4; i++) {
+    await click("kentei-submit");
+    await click("kentei-next");
+  }
+  assert.equal($("kentei-sent").textContent, "", "the automatic send is pending");
+  host.current = null; // the host clears the selection but keeps the View mounted
+  await flush();
+  settle(true);
+  await flush();
+  assert.equal($("kentei-sent").textContent, "", "the late result did not mark the detached game as sent");
+  app.unmount();
+});
+
 test("unmounting while a grade is pending stops everything: no timer restart, no second paid grade", async () => {
   const script = structuredClone(SAMPLE_SCRIPT);
   script.rules.timeLimitPerQuestion = 1;

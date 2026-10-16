@@ -83,8 +83,9 @@ deploy, so a bad file fails the build, not a game. Consequences:
   sample answers) and the chat plugin's checkScript and present (1 per level) apply them, and
   present refuses to show a script with a blocking one (`blocking`: the guard, a question that
   asks to pick from options). The wording check is a regex heuristic, so it is `overridable`:
-  present accepts `ignoreWording: true` for it, never for the guard. Keep its patterns to explicit
-  requests to pick; mentions (quoted, descriptive, negated) must pass.
+  present accepts `ignoreWording: true` for it, never for the guard, and check:quizzes only warns.
+  Keep its patterns to explicit requests to pick; a regex will still misread some mention, which
+  costs one `ignoreWording` call rather than a pattern for every phrasing.
 - `rules.credit` is optional; the schema's default (and `withDefaultCredit` in `src/game.ts`, which
   the Worker applies to the bundled quizzes) is Choice correct/close/wrong, Score [0, 0, 0.5, 1].
 

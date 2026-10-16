@@ -19,7 +19,6 @@ cpSync(join(root, "dist"), join(dir, "dist"), { recursive: true });
 copyFileSync(join(root, "package.json"), join(dir, "package.json"));
 test.after(() => rmSync(dir, { recursive: true, force: true }));
 
-const runtime = { log: { debug() {}, info() {}, warn() {}, error() {} } };
 const sample = JSON.parse(readFileSync(join(root, "quizzes", "example.json"), "utf8"));
 
 test("the copy has nothing to resolve packages from", () => {
@@ -38,16 +37,30 @@ test("dist/index.* and the chunks they load have no bare imports", () => {
   }
 });
 
+const fakeByPath = (files) => ({
+  async read(p) {
+    if (!(p in files)) throw new Error(`ENOENT: ${p}`);
+    return files[p];
+  },
+});
+
 for (const file of ["index.js", "index.cjs"]) {
-  test(`dist/${file} loads standalone and its factory runs`, async () => {
+  test(`dist/${file} loads standalone, in the legacy shape both hosts give a context to`, async () => {
     const path = join(dir, "dist", file);
     const mod = file.endsWith(".cjs") ? createRequire(path)(path) : await import(pathToFileURL(path).href);
-    assert.equal(typeof mod.default, "function", "default export is the definePlugin factory");
-    assert.equal(mod.TOOL_DEFINITION.name, "presentKentei");
-    const plugin = mod.default(runtime);
-    assert.equal(plugin.TOOL_DEFINITION.name, "presentKentei");
-    const result = await plugin.presentKentei(structuredClone(sample));
-    assert.ok(result.data, result.message);
-    assert.equal(result.data.script.meta.title, sample.meta.title);
+    assert.equal(mod.TOOL_DEFINITION.name, "manageKenteiScript");
+    assert.equal(mod.default, undefined, "no definePlugin factory: hosts would call it without a context");
+    // MulmoClaude's runtime loader: the export named after the tool, (context, args).
+    const guide = await mod.manageKenteiScript({}, { action: "getGuide" });
+    assert.match(guide.message, /KenteiScript/);
+    const inline = await mod.manageKenteiScript({}, { action: "present", script: structuredClone(sample) });
+    assert.equal(inline.data.script.meta.title, sample.meta.title);
+    // MulmoTerminal: pluginCore.execute(context, args), with the host's files.byPath for `path`.
+    const context = { files: { byPath: fakeByPath({ "quizzes/example.json": JSON.stringify(sample) }) } };
+    const byPath = await mod.pluginCore.execute(context, { action: "present", path: "quizzes/example.json" });
+    assert.equal(byPath.data.path, "quizzes/example.json");
+    assert.equal(byPath.data.script.meta.title, sample.meta.title);
+    const checked = await mod.pluginCore.execute(context, { action: "checkScript", path: "quizzes/example.json" });
+    assert.match(checked.message, /is a valid KenteiScript/);
   });
 }

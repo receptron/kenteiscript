@@ -89,4 +89,7 @@ export const SAMPLE_SCRIPT: KenteiScript = {
   ],
 };
 
-export const samples: ToolSample[] = [{ name: "光合成ミニ検定 (4 questions)", args: SAMPLE_SCRIPT as unknown as Record<string, unknown> }];
+export const samples: ToolSample[] = [
+  { name: "Guide", args: { action: "getGuide" } },
+  { name: "光合成ミニ検定 (4 questions)", args: { action: "present", script: SAMPLE_SCRIPT } },
+];

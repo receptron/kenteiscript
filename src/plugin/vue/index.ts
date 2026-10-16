@@ -1,4 +1,4 @@
-// The presentKentei plugin for Vue hosts (exported as "kenteiscript/plugin/vue"). Import
+// The manageKenteiScript plugin for Vue hosts (exported as "kenteiscript/plugin/vue"). Import
 // "kenteiscript/plugin/style.css" too, or inject it where the host renders plugin views.
 import type { ToolPlugin } from "gui-chat-protocol/vue";
 import type { KenteiData, KenteiJson } from "../core/types.ts";

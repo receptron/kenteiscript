@@ -20,7 +20,7 @@
         <fieldset v-if="choiceGrade" class="chips">
           <legend>{{ script.meta.titleChoicePrompt || `${choiceGrade.grade} の称号の呼び方` }}</legend>
           <label v-for="choice in [...(choiceGrade.titleChoices ?? []), '']" :key="choice">
-            <input v-model="state.titleChoice" type="radio" name="kentei-title" :value="choice || null" />
+            <input v-model="state.titleChoice" type="radio" :name="titleRadioName" :value="choice || null" />
             <span>{{ choice || "指定しない" }}</span>
           </label>
         </fieldset>
@@ -114,6 +114,12 @@
   </div>
 </template>
 
+<script lang="ts">
+let views = 0;
+/** A number unique to each View instance in this page. */
+const nextViewId = () => ++views;
+</script>
+
 <script setup lang="ts">
 import { computed, inject, onBeforeUnmount, ref, watch } from "vue";
 import type { ToolResult } from "gui-chat-protocol";
@@ -150,6 +156,10 @@ const emit = defineEmits<{
 // which grades with JEV. Injected rather than useRuntime(), which throws without a provider, so
 // the View still works (grading by the LLM) in a host that has not wired the runtime.
 const runtime = inject(PLUGIN_RUNTIME_KEY, null);
+// One radio group per View: with a fixed name, two quiz cards on one page would share a group, and
+// a choice in one would uncheck the other without updating its state. A module counter rather than
+// useId(), whose ids repeat across separately created apps (a host may mount each card on its own).
+const titleRadioName = `kentei-title-${nextViewId()}`;
 
 const script = ref<KenteiScript | null>(null);
 const state = ref<PlayState>({

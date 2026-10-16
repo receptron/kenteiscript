@@ -29,12 +29,17 @@ changes with those uses in mind, and do not claim them as supported until they a
   `src/game.ts` (types stripped) in the wrangler build step and `npm run typecheck`; it is
   git-ignored. Change the rules in `src/game.ts` only, keep it erasable TypeScript (no enums), and
   never edit `public/game.js`.
-- The **presentKentei chat plugin** lives in `src/plugin/` (README, *In chat*): `core/`
+- The **manageKenteiScript chat plugin** lives in `src/plugin/` (README, *In chat*): `core/`
   (host-neutral: tool definition, execute, game state, results message), `vue/` (View, Preview),
-  `server.ts` (the `definePlugin` factory: tool call + the View's `{ kind: "grade" }` dispatch) and
+  `server.ts` (the executor in the legacy `(context, args)` shape, not a `definePlugin` factory,
+  because hosts give a context, and so `files.byPath` for `path`, only to that shape; it takes the
+  tool's actions and the View's `{ kind: "grade" }` dispatch) and
   `grade.ts` (server-side JEV grading with the host's `TYPESAFE_API_KEY`). `npm run build:plugin`
   builds it with vite into `dist/` (git-ignored); `scripts/gen-plugin-types.mjs` then rewrites
-  `dist/types/kentei-script.d.ts` as plain types so the declarations do not import Zod. It may use Zod and Vue; the Worker must not, so
+  `dist/types/kentei-script.d.ts` as plain types so the declarations do not import Zod. The tool is
+  action-based (`getGuide`, `getSchema`, `checkScript`, `present`) to keep its definition small;
+  the authoring guide it serves is `AUTHORING_GUIDE` in `src/authoring.ts`, so update it with the
+  criteria rules below. It may use Zod and Vue; the Worker must not, so
   nothing under `src/plugin/` is imported from `src/index.ts`, `src/grading.ts` or `src/game.ts`.
 - Package manager: **npm** (package-lock.json).
 - The npm package name is **`kenteiscript`** (npm names must be lowercase, so not `KenteiScript`),
@@ -57,7 +62,7 @@ deploy, so a bad file fails the build, not a game. Consequences:
 - **A new field starts in the schema.** Objects are `strictObject`, so a key the schema does not
   list is an error — that is what catches typos like `explaination`. Add the field with a
   `.describe()` there, and the types follow. The description is also what an LLM reads when it
-  writes a KenteiScript through presentKentei (the tool's `parameters` are `z.toJSONSchema` of the
+  writes a KenteiScript through manageKenteiScript (its getSchema action returns `z.toJSONSchema` of the
   schema), so write it for that reader; `test/plugin.test.ts` fails if a property has none.
 - Rules that span fields (labels match `rules.credit`, unique ids, levels in range, grades
   descending) live in the schema's `superRefine`. Zod skips refinements while basic errors remain,
@@ -66,8 +71,9 @@ deploy, so a bad file fails the build, not a game. Consequences:
   devDependency on purpose. Do not call the schema from `src/index.ts` or `src/grading.ts`; that
   would pull Zod into the Worker for a check the build has already made.
 - Authoring conventions that a valid KenteiScript can still break (the injection guard, questions
-  per level, sample answers that name real questions) are in `scripts/check-quizzes.mjs`, not the
-  schema.
+  per level, reachable grades) are in `src/authoring.ts` (`authoringIssues`), not the schema; both
+  `scripts/check-quizzes.mjs` (10 per level, plus the sample answers) and the chat plugin's
+  checkScript (1 per level) apply them.
 
 ## Run after changes
 - `npm run typecheck` — regenerates `src/quizzes.gen.ts`, `public/game.js` and the Worker types,

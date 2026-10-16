@@ -57,8 +57,8 @@ Already there: **a time limit per question**, kept by the view (`rules.timeLimit
 [#1](https://github.com/receptron/kenteiscript/issues/1)). There is no limit for a whole test.
 
 In chat, a KenteiScript can also be written by the LLM on the spot and taken right there: the
-**presentKentei** plugin for MulmoClaude and MulmoTerminal shows the quiz in a view and sends the
-results back to the LLM (see [In chat](#in-chat-the-presentkentei-plugin)).
+**manageKenteiScript** plugin for MulmoClaude and MulmoTerminal shows the quiz in a view and sends
+the results back to the LLM (see [In chat](#in-chat-the-managekenteiscript-plugin)).
 
 For any decision that matters to a person — a grade on a report card, a job offer — use the model's
 grades as a first pass that a human reviews, not as the final word.
@@ -79,7 +79,7 @@ This repository holds:
 > 検定だけでなく、授業のあとの理解度の確認、期末試験、会社の入社試験などにも使えるように育てていきます。理解度の確認は今の
 > 仕組みで使えます。試験に使うには、全員に同じ問題を出す固定モード、受験者ごとの結果、採点の見直し（確信度の低い採点に印を
 > つける）が必要です（今後の課題）。1 問ごとの時間制限（#1）は使えます。
-> MulmoClaude や MulmoTerminal の中で、LLM がその場で作った KenteiScript に答え、結果を LLM に返すプラグイン（presentKentei）もあります（下の「In chat」）。人の評価に関わる判断では、モデルの採点を最終結果とせず、人が見直してください。
+> MulmoClaude や MulmoTerminal の中で、LLM がその場で作った KenteiScript に答え、結果を LLM に返すプラグイン（manageKenteiScript）もあります（下の「In chat」）。人の評価に関わる判断では、モデルの採点を最終結果とせず、人が見直してください。
 
 ## The format
 
@@ -226,27 +226,40 @@ Run it after every change to criteria; nothing else can tell you a rubric grades
 
 Each has a `.tests.json` with sample answers that JEV grades as expected.
 
-## In chat: the presentKentei plugin
+## In chat: the manageKenteiScript plugin
 
 In MulmoClaude and MulmoTerminal, the LLM can write a KenteiScript in the conversation (after
 explaining something, for a practice test) and the user takes it right there:
 
 ```
-LLM ── presentKentei(KenteiScript) ──► schema check ──► View in the chat ◄──► user answers
-                                            │                  │ each answer: runtime.dispatch
-                                  errors back to the LLM       ▼
-                                                     host server: JEV (TYPESAFE_API_KEY)
+LLM ── getGuide ─► getSchema ─► writes the script (inline, or a .json file) ─► checkScript ─► fixes
+LLM ── present(script | path) ──► schema check ──► View in the chat ◄──► user answers
+                                       │                  │ each answer: runtime.dispatch
+                             errors back to the LLM       ▼
+                                                host server: JEV (TYPESAFE_API_KEY)
 LLM ◄── sendTextMessage(results, each grade with its probability) ◄── View
 ```
 
 It is a [gui-chat-protocol](https://www.npmjs.com/package/gui-chat-protocol) plugin built the same
 way as presentForm (`@mulmoclaude/form-plugin`), in `src/plugin/`:
 
-- **The tool.** Its arguments are one KenteiScript; `parameters` is the Zod schema turned into
-  JSON Schema (`z.toJSONSchema`), and the schema's `.describe()`s are the field descriptions the
-  LLM reads. A script the schema rejects comes back with every error, so the LLM can fix it and
-  call again. A valid one returns at once with `instructions` to wait for the results. The tool's
-  `prompt` (system prompt) says when to use it and repeats the criteria-writing rules below.
+- **The tool** is one tool with an `action`, like `manageJingleScript`, so it costs little in the
+  LLM's context (the definition is about 1.4 KB, the system prompt one sentence); the format and
+  the guide are served on demand:
+  - `getGuide`: how to write a KenteiScript that grades well (`AUTHORING_GUIDE` in
+    `src/authoring.ts`: the criteria rules below, the shape of a chat quiz, a two-question example);
+  - `getSchema`: the exact format, the Zod schema as JSON Schema (`z.toJSONSchema`), with the
+    schema's `.describe()`s as field descriptions;
+  - `checkScript`: validates a script without showing it: every schema error, plus the authoring
+    rules as warnings (`authoringIssues` in `src/authoring.ts`, the same rules `check:quizzes`
+    applies to the samples: the injection guard, a question at every level, every grade reachable);
+  - `present`: validates it and shows the View; it returns at once with `instructions` to wait for
+    the results. An invalid script shows nothing and comes back with every error.
+
+  `checkScript` and `present` take the script as `script` (an object, or a JSON string) or as
+  `path`, a `.json` file relative to the project directory or absolute, which is better for long
+  scripts. The plugin reads a `path` through the host's `context.files.byPath`, as presentDocument
+  and manageJingleScript do; a host that gives none is told to pass `script` instead.
 - **The View** plays the script with the same rules as MulmoKentei (`src/game.ts`): adaptive levels,
   the hint for written and open questions, the grade and explanation after each answer,
   `timeLimitPerQuestion`, and the grade and title at the end. Progress is saved with
@@ -284,7 +297,7 @@ npm run build:plugin   # dist/: index.js (server), vue.js (View, Preview), style
 
 | export | file | what |
 |---|---|---|
-| `kenteiscript/plugin` | `dist/index.js` | default export: a `definePlugin` factory whose `presentKentei` handler takes both the LLM's tool call and the View's grade dispatch; named exports: `TOOL_DEFINITION`, `executeKentei`, `pluginCore`, … |
+| `kenteiscript/plugin` | `dist/index.js` | `TOOL_DEFINITION`, `pluginCore` (its `execute(context, args)` takes the LLM's tool call and the View's grade dispatch) and the same executor as `manageKenteiScript(context, args)`; also `executeKentei`, `AUTHORING_GUIDE`, the game-state functions, … |
 | `kenteiscript/plugin/vue` | `dist/vue.js` | `plugin` (`ToolPlugin`: core + `viewComponent` + `previewComponent` + `samples` + `systemPrompt`) |
 | `kenteiscript/plugin/style.css` | `dist/style.css` | the View's styles (scoped; inject it into the host's plugin frame) |
 
@@ -297,16 +310,27 @@ objects) with the inferred types written out as plain TypeScript, and fails the 
 declaration still imports `zod`. `main` points at `dist/index.js` and the files sit at `dist/vue.js` and
 `dist/style.css`, the layout MulmoClaude's runtime-plugin loader expects of a packed tarball.
 
+The server entry has the "legacy" shape (`TOOL_DEFINITION` + an executor taking `(context, args)`),
+not a `definePlugin` factory, on purpose: both hosts call a factory with the arguments only, so a
+factory could never receive `context.files.byPath`.
+
 - **MulmoTerminal:** add `"kenteiscript/plugin"` to `plugins/plugins.json` `packages` (the
-  package has no `.` export, so the bare name does not import); register the View in
-  `src/plugins-registry.ts` under the same key, wrapped in `wrapWithPluginRuntime("kentei", "presentKentei", …)` (the
-  View's `dispatch` must reach `/api/plugin/presentKentei`) with the style imported `?inline`; put
-  `presentKentei` in the `render` group in `common/toolGroups.ts`; set `TYPESAFE_API_KEY` in the
-  server's environment. The server registry already loads `definePlugin` factories.
-- **MulmoClaude:** either install it as a runtime plugin (the factory is dispatched through
-  `/api/plugins/runtime/<pkg>/dispatch`, and the View gets the scoped runtime), or add a thin
-  built-in adapter like `src/plugins/presentForm/` whose dispatch endpoint calls the factory's
-  handler, with the View wrapped by `wrapWithScope`.
+  package has no `.` export, so the bare name does not import). In
+  `server/infra/tools/plugins-registry.ts`, add `manageKenteiScript: kenteiScriptByPath` to
+  `BY_PATH_BY_TOOL`, with `kenteiScriptByPath = createByPathFileOps({ rootFor, extensions: [".json"] })`
+  in `server/backends/files/openPath.ts`; add `["manageKenteiScript", [".json"]]` to
+  `PRESENT_PATH_EXTENSIONS` in `server/backends/files/presentPathRoot.ts` so a relative `path` means
+  the session's project directory. Register the View in `src/plugins-registry.ts` under the same
+  key, wrapped in `wrapWithPluginRuntime("kentei", "manageKenteiScript", …)` (the View's
+  `dispatch` must reach `/api/plugin/manageKenteiScript`), with the style imported `?inline`; put
+  `manageKenteiScript` in the `render` group in `common/toolGroups.ts`; set `TYPESAFE_API_KEY` in
+  the server's environment.
+- **MulmoClaude:** installed as a runtime plugin it works as is, except `path`: the runtime
+  dispatch passes an empty context (`server/api/routes/runtime-plugin.ts`), so `path` is refused and
+  the LLM passes `script`. For `path`, add a built-in adapter like `src/plugins/presentForm/` (the
+  View wrapped by `wrapWithScope`) whose server endpoint calls
+  `pluginCore.execute({ files: { byPath: makeByPathFileOps([".json"]) } }, args)`
+  (`server/utils/files/by-path.ts`, as `server/plugins/html-builtin.ts` does for presentHtml).
 
 The package is still `"private": true`: until it is published, a host depends on it from a local
 path or a packed tarball (`npm pack` after `npm run build:plugin`).
@@ -411,7 +435,8 @@ the real JEV.
 src/kentei-script.ts  the KenteiScript format, as a Zod schema; the types are inferred from it
 src/grading.ts        the JEV call; shared with the Node scripts
 src/game.ts           the game rules (levels, picking, points, grades), shared by every runtime
-src/plugin/           the presentKentei chat plugin: core/, vue/, server.ts (built to dist/)
+src/authoring.ts      authoring rules (check:quizzes, checkScript) and the guide for LLM authors
+src/plugin/           the manageKenteiScript chat plugin: core/, vue/, server.ts (built to dist/)
 quizzes/*.json        sample KenteiScripts; *.tests.json are their sample answers
 src/index.ts          MulmoKentei Worker: routes, games, results (D1)
 public/index.html     MulmoKentei page; all quiz-specific text comes from the KenteiScript's meta

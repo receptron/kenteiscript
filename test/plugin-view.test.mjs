@@ -1,4 +1,4 @@
-// The presentKentei View, as a host mounts it: the built dist/vue.js in a jsdom document, with a
+// The manageKenteiScript View, as a host mounts it: the built dist/vue.js in a jsdom document, with a
 // fake plugin runtime whose dispatch stands in for the server's JEV grading.
 // Run `npm run build:plugin` first (CI does).
 import { test } from "node:test";
@@ -27,8 +27,8 @@ const flush = async () => {
 };
 
 async function mount({ grading, runtime, script = SAMPLE_SCRIPT }) {
-  const result = await executeKentei({}, structuredClone(script));
-  const props = reactive({ selectedResult: { ...result, data: { ...result.data, grading }, toolName: "presentKentei", uuid: "u1" } });
+  const result = await executeKentei({}, { action: "present", script: structuredClone(script) });
+  const props = reactive({ selectedResult: { ...result, data: { ...result.data, grading }, toolName: "manageKenteiScript", uuid: "u1" } });
   const sent = [];
   const updates = [];
   const el = document.createElement("div");
@@ -150,10 +150,10 @@ test("reopening restores a game in progress from viewState", async () => {
 test("rules.timeLimitPerQuestion: the View counts down and submits what is in the box at 0", async () => {
   const script = structuredClone(SAMPLE_SCRIPT);
   script.rules.timeLimitPerQuestion = 1;
-  const result = await executeKentei({}, script);
+  const result = await executeKentei({}, { action: "present", script: script });
   const el = document.createElement("div");
   document.body.appendChild(el);
-  let current = { ...result, toolName: "presentKentei", uuid: "t1" };
+  let current = { ...result, toolName: "manageKenteiScript", uuid: "t1" };
   const app = createApp({ render: () => h(plugin.viewComponent, { selectedResult: current, sendTextMessage() {}, onUpdateResult: (r) => (current = r) }) });
   app.mount(el);
   await flush();
@@ -187,11 +187,11 @@ test("a grading response that arrives after another game took over the View is d
   await v.click("kentei-submit");
   assert.match(v.$("kentei-submit").textContent, /採点中/);
 
-  // The host selects another presentKentei result while JEV is still grading.
+  // The host selects another manageKenteiScript result while JEV is still grading.
   const other = structuredClone(SAMPLE_SCRIPT);
   other.meta.title = "別の検定";
-  const next = await executeKentei({}, other);
-  v.props.selectedResult = { ...next, data: { ...next.data, grading: "jev" }, toolName: "presentKentei", uuid: "u2" };
+  const next = await executeKentei({}, { action: "present", script: other });
+  v.props.selectedResult = { ...next, data: { ...next.data, grading: "jev" }, toolName: "manageKenteiScript", uuid: "u2" };
   await flush();
   assert.match(v.el.textContent, /別の検定/);
   await v.click("kentei-start-button");
@@ -234,8 +234,8 @@ test("sendTextMessage returning false (no terminal took it) leaves the results u
   const tries = [];
   const el = document.createElement("div");
   document.body.appendChild(el);
-  const result = await executeKentei({}, structuredClone(SAMPLE_SCRIPT));
-  let current = { ...result, toolName: "presentKentei", uuid: "s1" };
+  const result = await executeKentei({}, { action: "present", script: structuredClone(SAMPLE_SCRIPT) });
+  let current = { ...result, toolName: "manageKenteiScript", uuid: "s1" };
   const app = createApp({
     render: () =>
       h(plugin.viewComponent, {
@@ -375,4 +375,26 @@ test("after a failed grade, 採点せずに続ける records the answer that was
   assert.equal(last.history.length, 1);
   assert.equal(last.history[0].answer, "", "the わからない that was submitted, not the draft 「書きかけ」");
   v.app.unmount();
+});
+
+test("two quiz cards with titleChoices on one page keep separate title choices", async () => {
+  const script = structuredClone(SAMPLE_SCRIPT);
+  script.rules.grades[0] = { ...script.rules.grades[0], titleChoices: ["光合成博士", "光合成名人"] };
+  const a = await mount({ grading: "llm", runtime: null, script });
+  const b = await mount({ grading: "llm", runtime: null, script });
+  const radios = (v) => [...v.el.querySelectorAll('input[type="radio"]')];
+  assert.notEqual(radios(a)[0].name, radios(b)[0].name, "each card has its own radio group");
+  const pick = async (v, label) => {
+    const input = radios(v).find((r) => r.parentElement.textContent.includes(label));
+    input.checked = true;
+    input.dispatchEvent(new dom.window.Event("change", { bubbles: true }));
+    await flush();
+  };
+  await pick(a, "光合成博士");
+  await pick(b, "光合成名人");
+  assert.ok(radios(a).find((r) => r.parentElement.textContent.includes("光合成博士")).checked, "card A keeps its choice");
+  assert.equal(a.updates.at(-1).viewState.titleChoice, "光合成博士");
+  assert.equal(b.updates.at(-1).viewState.titleChoice, "光合成名人");
+  a.app.unmount();
+  b.app.unmount();
 });

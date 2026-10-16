@@ -1,4 +1,4 @@
-// Server-side grading for the presentKentei View. The JEV key must never reach the browser, so the
+// Server-side grading for the manageKenteiScript View. The JEV key must never reach the browser, so the
 // View sends { kind: "grade", script, questionId, answer } through the host's plugin dispatch, and
 // this runs on the host's server with the key from the host's environment.
 import { parseKenteiScript } from "../kentei-script.ts";

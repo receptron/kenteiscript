@@ -1,7 +1,8 @@
-// The host-neutral core of the presentKentei plugin: the tool definition, execute, samples, and
-// the pure game-state functions the View uses. No Vue, no server APIs.
-export { TOOL_NAME, TOOL_DEFINITION, TOOL_DESCRIPTION, SYSTEM_PROMPT, kenteiParameters } from "./definition.ts";
-export { executeKentei, pluginCore, type KenteiResult } from "./plugin.ts";
+// The host-neutral core of the manageKenteiScript plugin: the tool definition, execute, samples,
+// and the pure game-state functions the View uses. No Vue, no server APIs.
+export { TOOL_NAME, TOOL_DEFINITION, TOOL_DESCRIPTION, SYSTEM_PROMPT, ACTIONS, type Action } from "./definition.ts";
+export { executeKentei, kenteiJsonSchema, pluginCore, type KenteiResult, type KenteiContext } from "./plugin.ts";
+export { AUTHORING_GUIDE, authoringIssues, INJECTION_GUARD, type AuthoringIssue } from "../../authoring.ts";
 export { samples, SAMPLE_SCRIPT } from "./samples.ts";
 export type { GradingMode, KenteiData, KenteiJson, GradeRequest, AnswerGrade } from "./types.ts";
 export {

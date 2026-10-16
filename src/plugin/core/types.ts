@@ -12,6 +12,8 @@ export type GradingMode = "jev" | "llm";
 export interface KenteiData {
   script: KenteiScript;
   grading: GradingMode;
+  /** The file the script was read from, when the tool was called with `path`. */
+  path?: string | undefined;
 }
 
 /** What the LLM reads back (ToolResult.jsonData): a summary, not the script it just wrote. */
@@ -21,6 +23,7 @@ export interface KenteiJson {
   questionsPerGame: number;
   levels: string;
   grading: GradingMode;
+  path?: string | undefined;
 }
 
 /** The View's request to the plugin's server part (runtime.dispatch). */

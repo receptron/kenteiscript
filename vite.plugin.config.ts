@@ -1,4 +1,4 @@
-// Builds the presentKentei chat plugin (src/plugin/) into dist/, the layout gui-chat-protocol hosts
+// Builds the manageKenteiScript chat plugin (src/plugin/) into dist/, the layout gui-chat-protocol hosts
 // load: dist/index.js (server entry: the definePlugin factory and the core), dist/vue.js (the View
 // and Preview), dist/style.css. ESM + CJS like @mulmoclaude/form-plugin.
 //

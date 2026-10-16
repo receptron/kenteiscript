@@ -300,8 +300,10 @@ way as presentForm (`@mulmoclaude/form-plugin`), in `src/plugin/`:
   Each line carries the question id, the grade (a Choice label, or level/top for Score) and the
   probability JEV gave it, so the LLM can tell a confident grade from a borderline one. The View
   sends them once when the game ends; if the host reports that
-  nothing received them (MulmoTerminal's `sendTextMessage` returns `false` when no terminal can take
-  the text), it says so and keeps a button to send them again.
+  nothing received them, it says so and keeps a button to send them again. `sendTextMessage` may
+  return `false` (MulmoTerminal, when no terminal can take the text) or a Promise (MulmoChat's
+  resolves to `false` when the session is gone); the View awaits it, and a rejected Promise also
+  counts as not delivered.
 
 ### Adding it to a host
 

@@ -86,7 +86,7 @@
         <p v-if="sendFailed && !state.sent" class="error" role="alert" data-testid="kentei-send-failed">
           結果をチャットに送れませんでした。送り先を開いてから、もう一度「結果をチャットに送る」を押してください。
         </p>
-        <button v-if="!state.sent" type="button" class="primary" data-testid="kentei-send" @click="sendResults">結果をチャットに送る</button>
+        <button v-if="!state.sent" type="button" class="primary" data-testid="kentei-send" :disabled="sending" @click="sendResults">結果をチャットに送る</button>
         <ol class="review">
           <li v-for="(h, i) in state.history" :key="h.id">
             <div class="row">
@@ -136,8 +136,9 @@ import { resultsMessage } from "../core/results.ts";
 
 const props = defineProps<{
   selectedResult: ToolResult | null;
-  // Typed void by gui-chat-protocol, but MulmoTerminal returns false when no terminal took the text.
-  sendTextMessage: (text?: string) => void | boolean;
+  // Typed void by gui-chat-protocol, but hosts report delivery: MulmoTerminal returns false when no
+  // terminal took the text, and MulmoChat returns a Promise<boolean>.
+  sendTextMessage: (text?: string) => void | boolean | Promise<void | boolean>;
 }>();
 
 const emit = defineEmits<{
@@ -170,6 +171,8 @@ const NO_RUNTIME_ERROR = "このチャットでは採点できません（プラ
 const error = ref("");
 /** The last attempt to send the results was not delivered (see sendResults). */
 const sendFailed = ref(false);
+/** A send is in flight (async hosts); the button waits for it. */
+const sending = ref(false);
 let restoring = false;
 // Bumped whenever a different game takes over the View (another result, a restart, unmount), so
 // a grading response that arrives afterwards is recognized as stale and dropped.
@@ -191,6 +194,7 @@ function load(result: ToolResult): void {
   if (!isKenteiData(result.data)) return;
   restoring = true;
   generation++;
+  sending.value = false;
   const s = result.data.script;
   script.value = s;
   state.value = toPlayState(result.viewState, s) ?? initialState(s);
@@ -336,6 +340,7 @@ const nextNote = computed(() => {
 function start(): void {
   if (!script.value || !runtime) return;
   generation++;
+  sending.value = false;
   state.value = advance(script.value, { ...state.value, phase: "start", history: [], level: script.value.rules.startLevel, sent: false });
 }
 
@@ -390,12 +395,24 @@ function next(): void {
 }
 
 // Only an explicit false means the text was not delivered (MulmoTerminal, with no terminal to type
-// into); undefined is a void host such as MulmoClaude. Undelivered results stay unsent, so the
-// button stays and the player can send them again.
+// into); undefined is a void host such as MulmoClaude. A host may also answer with a Promise
+// (MulmoChat's resolves to false when the session is gone), so the result is awaited, and a
+// rejected Promise counts as not delivered. Undelivered results stay unsent, so the button stays
+// and the player can send them again. A send that finishes after the game was replaced or the
+// View closed changes nothing.
 
-function sendResults(): void {
-  if (!script.value || state.value.sent) return;
-  const delivered = props.sendTextMessage(resultsMessage(script.value, state.value)) !== false;
+async function sendResults(): Promise<void> {
+  if (!script.value || state.value.sent || sending.value) return;
+  const asked = generation;
+  sending.value = true;
+  let delivered: boolean;
+  try {
+    delivered = (await props.sendTextMessage(resultsMessage(script.value, state.value))) !== false;
+  } catch {
+    delivered = false;
+  }
+  if (asked !== generation) return;
+  sending.value = false;
   sendFailed.value = !delivered;
   if (delivered) state.value = { ...state.value, sent: true };
 }

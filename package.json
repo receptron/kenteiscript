@@ -36,7 +36,7 @@
     "deploy": "node scripts/remote.mjs deploy",
     "remote": "node scripts/remote.mjs",
     "build:plugin": "vite build --config vite.plugin.config.ts && vue-tsc -p tsconfig.plugin.json && node scripts/gen-plugin-types.mjs",
-    "test:plugin": "node --test test/plugin-view.test.mjs"
+    "test:plugin": "node --test test/plugin-view.test.mjs test/plugin-standalone.test.mjs"
   },
   "engines": {
     "node": ">=22.18"

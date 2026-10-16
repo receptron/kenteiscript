@@ -288,8 +288,10 @@ npm run build:plugin   # dist/: index.js (server), vue.js (View, Preview), style
 | `kenteiscript/plugin/vue` | `dist/vue.js` | `plugin` (`ToolPlugin`: core + `viewComponent` + `previewComponent` + `samples` + `systemPrompt`) |
 | `kenteiscript/plugin/style.css` | `dist/style.css` | the View's styles (scoped; inject it into the host's plugin frame) |
 
-`vue` and `gui-chat-protocol` stay external (peer dependencies), so the plugin shares the host's
-instances; Zod is bundled. The declarations in `dist/types/` need no Zod either:
+The browser entry keeps `vue` and `gui-chat-protocol/vue` external (peer dependencies), so the
+View shares the host's instances. The server entry has no bare imports at all (gui-chat-protocol's
+core and Zod are bundled), because MulmoClaude's runtime loader imports `dist/index.js` from its
+plugin cache with no `node_modules` around it; `test/plugin-standalone.test.mjs` loads it that way. The declarations in `dist/types/` need no Zod either:
 `scripts/gen-plugin-types.mjs` replaces the emitted `kentei-script.d.ts` (which declares the schema
 objects) with the inferred types written out as plain TypeScript, and fails the build if any
 declaration still imports `zod`. `main` points at `dist/index.js` and the files sit at `dist/vue.js` and
@@ -387,7 +389,7 @@ browser ── GET  /api/quizzes       titles for the picker
 ```sh
 npm run typecheck             # the Worker, the scripts and the plugin (vue-tsc)
 npm run test:unit             # the game rules, the plugin's execute, state, results and server grading
-npm run build:plugin && npm run test:plugin   # the plugin View, mounted from dist/ in jsdom
+npm run build:plugin && npm run test:plugin   # the built View in jsdom; the server entry loaded from an empty dir
 npm test                      # end-to-end check of a running server (start `npm run dev` first)
 npm test -- http://localhost:8787 example     # another quiz, or another server
 ```

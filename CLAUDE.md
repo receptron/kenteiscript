@@ -76,7 +76,9 @@ deploy, so a bad file fails the build, not a game. Consequences:
 - `npm run test:unit` — the game rules and the plugin core (`node --test test/*.test.ts`). No
   server, no key.
 - `npm run build:plugin && npm run test:plugin` — after any change under `src/plugin/`: builds
-  `dist/` and mounts the built View in jsdom. Check that `npx wrangler deploy --dry-run --outdir
+  `dist/`, mounts the built View in jsdom, and loads `dist/index.{js,cjs}` from a temp dir with no
+  `node_modules` (the server entry must have no bare imports; only the browser entry may import
+  `vue` and `gui-chat-protocol/vue`). Check that `npx wrangler deploy --dry-run --outdir
   <dir>` still bundles no Zod or Vue after touching anything the Worker imports.
 - `npm test` — end-to-end check of a **running** server, so start `npm run dev` first. It needs
   no flags for the default quiz; `npm test -- http://localhost:8787 <quiz>` for another one.

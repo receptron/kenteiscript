@@ -192,7 +192,10 @@ test("maxPoints of the sample script follows its question pool, and its grades a
   // maxPoints is an estimate, so an unreachable grade is reported but does not stop the quiz.
   const shown = await present(greedy);
   assert.ok(shown.data);
-  assert.match(shown.message, /Not fixed, shown anyway: rules: grade A needs 9 points, but a game with the best answer every time reaches 8; set the grades from 8/);
+  assert.match(
+    shown.message,
+    /Not fixed, shown anyway: rules: grade A needs 9 points, but a game with the best answer every time reaches 8; set the grades from 8/,
+  );
   assert.match((await check({ script: greedy })).message, /grade A needs 9 points/);
 });
 
@@ -224,7 +227,10 @@ test("present: an invalid KenteiScript returns every schema error and shows noth
 test("checkScript: valid, warnings (the authoring rules), and errors, without showing anything", async () => {
   const ok = await check({ script: clone(SAMPLE_SCRIPT) });
   assert.equal(ok.data, undefined);
-  assert.match(ok.message, /is a valid KenteiScript: 「光合成ミニ検定」, 4 questions, 4 per game, levels 1-3; a game with the best answer every time reaches 8 points\.\nNothing to fix\./);
+  assert.match(
+    ok.message,
+    /is a valid KenteiScript: 「光合成ミニ検定」, 4 questions, 4 per game, levels 1-3; a game with the best answer every time reaches 8 points\.\nNothing to fix\./,
+  );
   assert.match(ok.instructions ?? "", /present/);
 
   const weak = clone(SAMPLE_SCRIPT);
@@ -340,7 +346,7 @@ test("questions that promise options, and a start screen that talks about Choice
   const promised = clone(SAMPLE_SCRIPT);
   promised.meta.rules = ["全問4択です。", "Each question is multiple choice.", "全問4択で、時間制限はありません。"];
   // Start-screen wording is a heuristic: reported (checkScript, and with the shown quiz), never blocking.
-  assert.equal((((await check({ script: promised })).message.match(/- meta: /g)) ?? []).length, 3);
+  assert.equal(((await check({ script: promised })).message.match(/- meta: /g) ?? []).length, 3);
   const shownAnyway = await present(promised);
   assert.ok(shownAnyway.data);
   assert.match(shownAnyway.message, /Not fixed, shown anyway: meta: 「全問4択です。」/);
@@ -359,8 +365,10 @@ test("questions that promise options, and a start screen that talks about Choice
   ];
   fine.questions[0]!.question = "写真を「猫」「犬」のどれかに分けるタスクを何という？ どれが正しいかを判断するとき、何を確かめる？";
   fine.questions[1]!.question = "家康が江戸を選んで本拠にした理由は？ 利用者が配送方法を選べます。選択肢を選んで答える方式の欠点は？";
-  fine.questions[2]!.question = "Explain why a neural network might choose the wrong class. Choose a renewable energy source and explain how it generates electricity.";
-  fine.questions[3]!.question = "SELECT COUNT(*) FROM users; このSQLは何を返しますか？ 「次のうち」を英語に訳すと？ Translate \"Which of the following\" into Japanese.";
+  fine.questions[2]!.question =
+    "Explain why a neural network might choose the wrong class. Choose a renewable energy source and explain how it generates electricity.";
+  fine.questions[3]!.question =
+    'SELECT COUNT(*) FROM users; このSQLは何を返しますか？ 「次のうち」を英語に訳すと？ Translate "Which of the following" into Japanese.';
   const fineShown = await present(fine);
   assert.ok(fineShown.data, fineShown.message);
   assert.doesNotMatch(fineShown.message, /Not fixed/);
@@ -449,7 +457,9 @@ test("the server entry: legacy shape, context passed through", async () => {
   assert.equal(typeof manageKenteiScript, "function", "MulmoClaude's runtime loader calls the export named after the tool");
   assert.equal(pluginCore.toolDefinition.name, "manageKenteiScript");
   // MulmoTerminal runs pluginCore.execute(context, args) with context.files.byPath.
-  const viaCore = (await withProcessKey("k", () => pluginCore.execute(withFiles({ "/project/q.json": JSON.stringify(SAMPLE_SCRIPT) }) as never, { action: "present", path: "q.json" }))) as { data: KenteiData };
+  const viaCore = (await withProcessKey("k", () =>
+    pluginCore.execute(withFiles({ "/project/q.json": JSON.stringify(SAMPLE_SCRIPT) }) as never, { action: "present", path: "q.json" }),
+  )) as { data: KenteiData };
   assert.equal(viaCore.data.path, "q.json");
   const withKey = (await handleKentei({ action: "present", script: clone(SAMPLE_SCRIPT) }, { apiKey: "k" })) as { data: KenteiData };
   assert.equal(withKey.data.script.meta.title, SAMPLE_SCRIPT.meta.title);
@@ -483,8 +493,14 @@ test("without a TYPESAFE_API_KEY every action fails with MISSING_KEY_MESSAGE and
     }
   }
   // The View's grade dispatch refuses with the same message (the same check on the same env).
-  await assert.rejects(handleKentei({ kind: "grade", script: SAMPLE_SCRIPT, questionId: "L1-01", answer: "葉緑体" }, {}), (e: Error) => e.message === MISSING_KEY_MESSAGE);
-  await assert.rejects(gradeRequest({ kind: "grade", script: SAMPLE_SCRIPT, questionId: "L1-01", answer: "葉緑体" }, { apiKey: "" }), (e: Error) => e.message === MISSING_KEY_MESSAGE);
+  await assert.rejects(
+    handleKentei({ kind: "grade", script: SAMPLE_SCRIPT, questionId: "L1-01", answer: "葉緑体" }, {}),
+    (e: Error) => e.message === MISSING_KEY_MESSAGE,
+  );
+  await assert.rejects(
+    gradeRequest({ kind: "grade", script: SAMPLE_SCRIPT, questionId: "L1-01", answer: "葉緑体" }, { apiKey: "" }),
+    (e: Error) => e.message === MISSING_KEY_MESSAGE,
+  );
 });
 
 test("manageKenteiScript and pluginCore.execute read the key from the process environment, as grading does", async () => {
@@ -496,7 +512,10 @@ test("manageKenteiScript and pluginCore.execute read the key from the process en
   });
   await withProcessKey("", async () => {
     assert.equal(((await manageKenteiScript({}, { action: "getSchema" })) as { message: string }).message, MISSING_KEY_MESSAGE);
-    await assert.rejects(manageKenteiScript({}, { kind: "grade", script: SAMPLE_SCRIPT, questionId: "L1-01", answer: "x" }), (e: Error) => e.message === MISSING_KEY_MESSAGE);
+    await assert.rejects(
+      manageKenteiScript({}, { kind: "grade", script: SAMPLE_SCRIPT, questionId: "L1-01", answer: "x" }),
+      (e: Error) => e.message === MISSING_KEY_MESSAGE,
+    );
   });
   await withProcessKey("env-key", async () => {
     const shown = (await manageKenteiScript({}, { action: "present", script: clone(SAMPLE_SCRIPT) })) as { data: KenteiData };
@@ -609,7 +628,16 @@ test("viewState round-trips through JSON and drops what does not fit the script"
 test("a viewState saved by the removed LLM-grading fallback starts the game over", () => {
   const script = clone(SAMPLE_SCRIPT);
   // What older versions saved for an ungraded game: mode "llm", answers without a grade.
-  const oldLlm = { phase: "question", mode: "llm", level: 3, currentId: "L2-01", history: [{ id: "L1-01", answer: "葉緑体", level: 3 }], draft: "", titleChoice: null, sent: false };
+  const oldLlm = {
+    phase: "question",
+    mode: "llm",
+    level: 3,
+    currentId: "L2-01",
+    history: [{ id: "L1-01", answer: "葉緑体", level: 3 }],
+    draft: "",
+    titleChoice: null,
+    sent: false,
+  };
   assert.equal(toPlayState(oldLlm, script), null);
   assert.equal(toPlayState({ ...oldLlm, phase: "done", currentId: null, sent: true }, script), null);
   // An ungraded answer is refused whatever the mode says; a JEV game saved with mode "jev" still restores.

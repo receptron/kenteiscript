@@ -49,10 +49,12 @@ const listed = list.quizzes?.map((q) => q.id) ?? [];
 check(listRes.ok && listed[0] === list.default, "quiz list starts with the default quiz", listed.join(", "));
 check(!/"(jev|instructions|criteria|explanation|questions)"/.test(JSON.stringify(list)), "quiz list carries titles only");
 const loads = await Promise.all(listed.map((id) => fetch(`${base}/api/quiz?quiz=${encodeURIComponent(id)}`)));
-check(loads.every((r) => r.ok), "every listed quiz loads");
+check(
+  loads.every((r) => r.ok),
+  "every listed quiz loads",
+);
 
-check((await post("/api/grade", { gameId: "nope", id: quiz.questions[0].id, answer: "x" })).status === 400,
-  "grading without a game is refused");
+check((await post("/api/grade", { gameId: "nope", id: quiz.questions[0].id, answer: "x" })).status === 400, "grading without a game is refused");
 
 const { body: start } = await post(`/api/start${quizQs}`);
 const gameId = start.gameId;
@@ -68,7 +70,10 @@ for (let i = 0; i < rules.questionsPerGame; i++) {
   const q = pickQuestion(quiz.questions, used, level, () => 0);
   used.add(q.id);
   const r = await post("/api/grade", { gameId, id: q.id, answer: i === 0 ? "" : "わからない" });
-  if (r.status !== 200) { check(false, `grade ${q.id}`, JSON.stringify(r.body)); break; }
+  if (r.status !== 200) {
+    check(false, `grade ${q.id}`, JSON.stringify(r.body));
+    break;
+  }
   total += r.body.points;
   if (i === 0) {
     check(r.body.points === 0, "an empty answer earns no points", `${r.body.type} → ${r.body.result}`);
@@ -80,8 +85,7 @@ for (let i = 0; i < rules.questionsPerGame; i++) {
 const done = await post("/api/finish", { gameId });
 check(done.status === 200, "a finished game is recorded", `grade ${done.body.grade}, ${done.body.points} points`);
 check(done.body.points === total, "recorded points are the server's own total", `${done.body.points} vs ${total}`);
-check(done.body.stats?.total >= 1 && done.body.stats.counts?.[done.body.grade] >= 1, "chart stats include this game",
-  `${done.body.stats?.total} plays`);
+check(done.body.stats?.total >= 1 && done.body.stats.counts?.[done.body.grade] >= 1, "chart stats include this game", `${done.body.stats?.total} plays`);
 check((await post("/api/finish", { gameId })).status === 400, "a game cannot be recorded twice");
 
 console.log(failures ? `\n${failures} check(s) failed` : "\nall checks passed");

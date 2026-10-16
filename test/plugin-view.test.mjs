@@ -35,9 +35,10 @@ const correctRuntime = () => ({
   async dispatch(args, parse) {
     this.calls.push(args);
     const q = args.script.questions.find((x) => x.id === args.questionId);
-    const raw = q.jev.type === "Choice"
-      ? { type: "Choice", result: "correct", probabilities: { correct: 0.9 }, credit: 1, points: q.level }
-      : { type: "Score", result: 3, probabilities: { 3: 0.9 }, credit: 1, points: q.level };
+    const raw =
+      q.jev.type === "Choice"
+        ? { type: "Choice", result: "correct", probabilities: { correct: 0.9 }, credit: 1, points: q.level }
+        : { type: "Score", result: 3, probabilities: { 3: 0.9 }, credit: 1, points: q.level };
     return parse ? parse(raw) : raw;
   },
 });
@@ -95,9 +96,10 @@ test("with a runtime and a key: each answer is graded through dispatch, and the 
     async dispatch(args, parse) {
       calls.push(args);
       const q = args.script.questions.find((x) => x.id === args.questionId);
-      const raw = q.jev.type === "Choice"
-        ? { type: "Choice", result: "correct", probabilities: { correct: 0.93, close: 0.05, wrong: 0.02 }, credit: 1, points: q.level }
-        : { type: "Score", result: 2, probabilities: { 0: 0.05, 1: 0.1, 2: 0.7, 3: 0.15 }, credit: 0.5, points: q.level * 0.5 };
+      const raw =
+        q.jev.type === "Choice"
+          ? { type: "Choice", result: "correct", probabilities: { correct: 0.93, close: 0.05, wrong: 0.02 }, credit: 1, points: q.level }
+          : { type: "Score", result: 2, probabilities: { 0: 0.05, 1: 0.1, 2: 0.7, 3: 0.15 }, credit: 0.5, points: q.level * 0.5 };
       return parse ? parse(raw) : raw;
     },
   };
@@ -141,7 +143,12 @@ test("with a runtime and a key: each answer is graded through dispatch, and the 
 test("without a key on the server: the grade dispatch is refused, the View says so and does not go on", async () => {
   const calls = [];
   // What a host's dispatch rejects with when the plugin's server part throws MISSING_KEY_MESSAGE.
-  const runtime = { dispatch: async (args) => { calls.push(args); throw new Error(MISSING_KEY_MESSAGE); } };
+  const runtime = {
+    dispatch: async (args) => {
+      calls.push(args);
+      throw new Error(MISSING_KEY_MESSAGE);
+    },
+  };
   const v = await mount({ runtime });
   await v.click("kentei-start-button");
   const question = v.$("kentei-question-text").textContent;
@@ -154,7 +161,10 @@ test("without a key on the server: the grade dispatch is refused, the View says 
     assert.ok(!v.el.textContent.includes("採点せずに"), "no way to go on ungraded");
   }
   assert.equal(calls.length, 2);
-  assert.ok(v.updates.every((u) => u.viewState.history.length === 0), "nothing recorded");
+  assert.ok(
+    v.updates.every((u) => u.viewState.history.length === 0),
+    "nothing recorded",
+  );
   assert.equal(v.sent.length, 0, "nothing sent to the chat");
   v.app.unmount();
 });
@@ -170,7 +180,16 @@ test("in a host with no plugin runtime the View cannot grade: it says so and doe
 });
 
 test("a viewState saved by the removed LLM-grading fallback opens as a fresh game, without errors", async () => {
-  const viewState = { phase: "question", mode: "llm", level: 3, currentId: "L2-01", history: [{ id: "L1-01", answer: "葉緑体", level: 3 }], draft: "x", titleChoice: null, sent: false };
+  const viewState = {
+    phase: "question",
+    mode: "llm",
+    level: 3,
+    currentId: "L2-01",
+    history: [{ id: "L1-01", answer: "葉緑体", level: 3 }],
+    draft: "x",
+    titleChoice: null,
+    sent: false,
+  };
   const v = await mount({ runtime: correctRuntime(), viewState });
   assert.ok(v.$("kentei-start"), "back on the start screen");
   await v.click("kentei-start-button");
@@ -258,7 +277,10 @@ test("a grading response that arrives after another game took over the View is d
   assert.ok(v.$("kentei-question"), "the new game is still on its first question");
   assert.equal(v.$("kentei-feedback"), null);
   assert.match(v.$("kentei-submit").textContent, /答える/, "the new game is not left in 採点中");
-  assert.ok(v.updates.slice(updatesBefore).every((u) => u.viewState.history.length === 0), "the old grade is not recorded");
+  assert.ok(
+    v.updates.slice(updatesBefore).every((u) => u.viewState.history.length === 0),
+    "the old grade is not recorded",
+  );
   v.app.unmount();
 });
 
@@ -504,7 +526,14 @@ test("reopening a saved timed quiz on a question restores it and starts the coun
 test("after a failed grade the player can only retry: 答える again grades the answer", async () => {
   let fail = true;
   const ok = correctRuntime();
-  const runtime = { calls: 0, async dispatch(args, parse) { this.calls++; if (fail) throw new Error("JEV down"); return ok.dispatch(args, parse); } };
+  const runtime = {
+    calls: 0,
+    async dispatch(args, parse) {
+      this.calls++;
+      if (fail) throw new Error("JEV down");
+      return ok.dispatch(args, parse);
+    },
+  };
   const v = await mount({ runtime });
   await v.click("kentei-start-button");
   await v.type("酸素");

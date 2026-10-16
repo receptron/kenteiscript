@@ -47,7 +47,11 @@ const status = computed(() => {
   border-radius: 10px;
   background: #fbf7ef;
   color: #1f1a17;
-  font: 14px/1.5 "Hiragino Sans", "Noto Sans JP", system-ui, sans-serif;
+  font:
+    14px/1.5 "Hiragino Sans",
+    "Noto Sans JP",
+    system-ui,
+    sans-serif;
 }
 .seal {
   flex: none;
@@ -58,7 +62,10 @@ const status = computed(() => {
   color: #fff;
   display: grid;
   place-items: center;
-  font: 800 12px/1 "Hiragino Mincho ProN", "Yu Mincho", serif;
+  font:
+    800 12px/1 "Hiragino Mincho ProN",
+    "Yu Mincho",
+    serif;
   transform: rotate(-4deg);
 }
 .body {

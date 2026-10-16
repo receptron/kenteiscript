@@ -77,7 +77,9 @@ async function grade(env: Env, body: Record<string, unknown>) {
   if (!q) return json(400, { error: "unknown question" });
   if (game.done || game.n >= quiz.rules.questionsPerGame) return json(400, { error: "この問題はもう採点済みです" });
 
-  const answer = String(body.answer ?? "").trim().slice(0, MAX_ANSWER_CHARS);
+  const answer = String(body.answer ?? "")
+    .trim()
+    .slice(0, MAX_ANSWER_CHARS);
   let result;
   try {
     result = await gradeAnswer(quiz, q, answer, { apiKey: env.TYPESAFE_API_KEY, model: env.JEV_MODEL, url: env.JEV_URL });
@@ -86,9 +88,7 @@ async function grade(env: Env, body: Record<string, unknown>) {
     return json(502, { error: "採点に失敗しました" });
   }
   // The primary key rejects a second grade of the same question sent in parallel.
-  const saved = await env.DB.prepare("INSERT OR IGNORE INTO answers (game_id, qid, points) VALUES (?, ?, ?)")
-    .bind(gameId, q.id, result.points)
-    .run();
+  const saved = await env.DB.prepare("INSERT OR IGNORE INTO answers (game_id, qid, points) VALUES (?, ?, ?)").bind(gameId, q.id, result.points).run();
   if (!saved.meta.changes) return json(400, { error: "この問題はもう採点済みです" });
   return json(200, result);
 }
@@ -109,9 +109,7 @@ async function finishGame(env: Env, body: Record<string, unknown>) {
   const grade = gradeFor(quiz, points);
   const time = new Date().toISOString().slice(0, 19);
   const [inserted] = await env.DB.batch([
-    env.DB.prepare("INSERT OR IGNORE INTO plays (game_id, quiz, time, points, grade) VALUES (?, ?, ?, ?, ?)").bind(
-      gameId, row.quiz, time, points, grade,
-    ),
+    env.DB.prepare("INSERT OR IGNORE INTO plays (game_id, quiz, time, points, grade) VALUES (?, ?, ?, ?, ?)").bind(gameId, row.quiz, time, points, grade),
     env.DB.prepare("DELETE FROM answers WHERE game_id = ?").bind(gameId),
     env.DB.prepare("DELETE FROM games WHERE id = ?").bind(gameId),
   ]);
@@ -119,9 +117,7 @@ async function finishGame(env: Env, body: Record<string, unknown>) {
 
   const [counts, ranks] = await env.DB.batch([
     env.DB.prepare("SELECT grade, COUNT(*) AS n FROM plays WHERE quiz = ? GROUP BY grade").bind(row.quiz),
-    env.DB.prepare(
-      "SELECT COUNT(*) AS total, SUM(points > ?1) AS above, SUM(points < ?1) AS below FROM plays WHERE quiz = ?2",
-    ).bind(points, row.quiz),
+    env.DB.prepare("SELECT COUNT(*) AS total, SUM(points > ?1) AS above, SUM(points < ?1) AS below FROM plays WHERE quiz = ?2").bind(points, row.quiz),
   ]);
   const byGrade: Record<string, number> = Object.fromEntries(quiz.rules.grades.map((g) => [g.grade, 0]));
   for (const r of counts.results as { grade: string; n: number }[]) byGrade[r.grade] = r.n;

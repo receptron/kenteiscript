@@ -16,14 +16,20 @@ export interface KenteiContext extends ToolContext {
 }
 
 const isRecord = (value: unknown): value is Record<string, unknown> => typeof value === "object" && value !== null && !Array.isArray(value);
-const text = (message: string, instructions?: string): KenteiResult => (instructions ? { toolName: TOOL_NAME, message, instructions } : { toolName: TOOL_NAME, message });
+const text = (message: string, instructions?: string): KenteiResult =>
+  instructions ? { toolName: TOOL_NAME, message, instructions } : { toolName: TOOL_NAME, message };
 /**
  * A step of the authoring loop (getGuide → write → present, fixing what it lists): instructions the
  * LLM must act on in this same turn. instructionsRequired asks a host that gives a model another turn
  * only for instructions (MulmoChat) to give it one, so the loop does not stop after reading the guide.
  */
 const KEEP_GOING = "Do not reply to the user yet.";
-const step = (message: string, instructions: string): KenteiResult => ({ toolName: TOOL_NAME, message, instructions: `${instructions} ${KEEP_GOING}`, instructionsRequired: true });
+const step = (message: string, instructions: string): KenteiResult => ({
+  toolName: TOOL_NAME,
+  message,
+  instructions: `${instructions} ${KEEP_GOING}`,
+  instructionsRequired: true,
+});
 const errorText = (error: unknown) => (error instanceof Error ? error.message : String(error));
 
 // Remove what the LLM does not need from the generated schema: `propertyNames: { type: "string" }`
@@ -87,33 +93,55 @@ async function loadScript(context: KenteiContext, args: Record<string, unknown>)
   const hasScript = given(args.script);
   const hasPath = given(args.path);
   if (hasScript && hasPath) return { error: step("Give `script` or `path`, not both.", `Call again with only one of them.`) };
-  if (!hasScript && !hasPath) return { error: step("Nothing to check: give the KenteiScript as `script`, or `path` to a KenteiScript .json file.", `Call again with \`script\` or \`path\`.`) };
+  if (!hasScript && !hasPath)
+    return {
+      error: step("Nothing to check: give the KenteiScript as `script`, or `path` to a KenteiScript .json file.", `Call again with \`script\` or \`path\`.`),
+    };
 
   let data: unknown;
   let path: string | undefined;
   if (hasPath) {
-    if (typeof args.path !== "string" || !args.path.trim()) return { error: step("`path` must be a non-empty string: a KenteiScript .json file.", `Call again with a .json path, or the script as \`script\`.`) };
+    if (typeof args.path !== "string" || !args.path.trim())
+      return { error: step("`path` must be a non-empty string: a KenteiScript .json file.", `Call again with a .json path, or the script as \`script\`.`) };
     path = args.path;
     const byPath = context.files?.byPath;
-    if (!byPath) return { error: step("This host cannot read files: pass the KenteiScript itself as `script` instead of `path`.", `Call again with the whole script as \`script\`.`) };
+    if (!byPath)
+      return {
+        error: step(
+          "This host cannot read files: pass the KenteiScript itself as `script` instead of `path`.",
+          `Call again with the whole script as \`script\`.`,
+        ),
+      };
     let source: string;
     try {
       source = await byPath.read(path);
     } catch (error) {
-      return { error: step(`Could not read ${path}: ${errorText(error)}`, "Check the path (a .json file, relative to the project directory or absolute), or pass the script as `script`.") };
+      return {
+        error: step(
+          `Could not read ${path}: ${errorText(error)}`,
+          "Check the path (a .json file, relative to the project directory or absolute), or pass the script as `script`.",
+        ),
+      };
     }
     try {
       data = JSON.parse(source);
     } catch (error) {
       const where = jsonErrorWhere(source, error);
-      return { error: step(`${path} is not valid JSON${where ? ` (${where})` : ""}: ${errorText(error)}`, `Fix the JSON in ${path} and call again with the same path.`) };
+      return {
+        error: step(
+          `${path} is not valid JSON${where ? ` (${where})` : ""}: ${errorText(error)}`,
+          `Fix the JSON in ${path} and call again with the same path.`,
+        ),
+      };
     }
   } else if (typeof args.script === "string") {
     try {
       data = JSON.parse(args.script);
     } catch (error) {
       const where = jsonErrorWhere(args.script, error);
-      return { error: step(`\`script\` is a string but not valid JSON${where ? ` (${where})` : ""}: ${errorText(error)}`, "Pass the KenteiScript as a JSON object.") };
+      return {
+        error: step(`\`script\` is a string but not valid JSON${where ? ` (${where})` : ""}: ${errorText(error)}`, "Pass the KenteiScript as a JSON object."),
+      };
     }
   } else {
     data = args.script;
@@ -125,7 +153,12 @@ async function loadScript(context: KenteiContext, args: Record<string, unknown>)
     // A fix resent inline has dropped questions that had nothing wrong with them: say to keep them.
     const n = isRecord(data) && Array.isArray(data.questions) ? data.questions.length : 0;
     const whole = n ? ` with the whole script: all ${n} questions, changing only what is listed` : " with the whole script";
-    return { error: step(errorText(error), `Fix every problem listed above${path ? ` in ${path}` : " in the script"} and call again${path ? " with the same path" : whole}.`) };
+    return {
+      error: step(
+        errorText(error),
+        `Fix every problem listed above${path ? ` in ${path}` : " in the script"} and call again${path ? " with the same path" : whole}.`,
+      ),
+    };
   }
 }
 
@@ -138,7 +171,10 @@ const listIssues = (issues: AuthoringIssue[]) => `${issues.length} problem(s) to
 function checkResult(script: KenteiScript, path: string | undefined): KenteiResult {
   const issues = authoringIssues(script, { minPerLevel: 1 });
   if (!issues.length) return step(`${summary(script, path)}\nNothing to fix.`, `Call present with the same ${path ? "path" : "script"} now to show it.`);
-  return step(`${summary(script, path)}\n${listIssues(issues)}`, `Fix every problem${path ? ` in ${path}` : ""} and call present${path ? " with the same path" : ` with the whole script: all ${script.questions.length} questions, changing only what is listed`}.`);
+  return step(
+    `${summary(script, path)}\n${listIssues(issues)}`,
+    `Fix every problem${path ? ` in ${path}` : ""} and call present${path ? " with the same path" : ` with the whole script: all ${script.questions.length} questions, changing only what is listed`}.`,
+  );
 }
 
 /**
@@ -188,7 +224,8 @@ function presentResult(script: KenteiScript, path: string | undefined, ignoreWor
  * so the failure is the message itself (it starts "manageKenteiScript is unavailable"), with
  * instructions to stop and no `data`, so the host renders no card.
  */
-const missingKey = (): KenteiResult => text(MISSING_KEY_MESSAGE, "Stop here: tell the user what to set, and do not call manageKenteiScript again until they say the host has the key.");
+const missingKey = (): KenteiResult =>
+  text(MISSING_KEY_MESSAGE, "Stop here: tell the user what to set, and do not call manageKenteiScript again until they say the host has the key.");
 
 const isAction = (value: unknown): value is Action => typeof value === "string" && (ACTIONS as readonly string[]).includes(value);
 

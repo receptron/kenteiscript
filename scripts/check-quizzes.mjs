@@ -18,7 +18,9 @@ const fail = (where, msg) => {
   problems++;
 };
 
-const files = readdirSync(dir).filter((f) => f.endsWith(".json") && !f.endsWith(".tests.json")).sort();
+const files = readdirSync(dir)
+  .filter((f) => f.endsWith(".json") && !f.endsWith(".tests.json"))
+  .sort();
 for (const file of files) {
   const id = file.replace(/\.json$/, "");
   const before = problems;
@@ -55,9 +57,10 @@ for (const file of files) {
         const q = byId.get(t.id);
         const at = `${id}.tests.json #${i + 1}`;
         if (!q) return fail(at, `unknown question ${t.id}`);
-        const ok = q.jev.type === "Choice"
-          ? typeof t.expect === "string" && t.expect in q.jev.criteria
-          : typeof t.expect === "number" && t.expect < q.jev.criteria.length;
+        const ok =
+          q.jev.type === "Choice"
+            ? typeof t.expect === "string" && t.expect in q.jev.criteria
+            : typeof t.expect === "number" && t.expect < q.jev.criteria.length;
         if (!ok) fail(at, `expect ${JSON.stringify(t.expect)} is not a grade ${t.id} (${q.jev.type}) can get`);
       });
     }

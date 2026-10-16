@@ -81,26 +81,30 @@ for (const file of ["index.js", "index.cjs"]) {
             assert.equal(r.data, undefined, "no View");
           }
         }
-        await assert.rejects(mod.manageKenteiScript({}, { kind: "grade", script: sample, questionId: sample.questions[0].id, answer: "x" }), (e) => e.message === mod.MISSING_KEY_MESSAGE);
+        await assert.rejects(
+          mod.manageKenteiScript({}, { kind: "grade", script: sample, questionId: sample.questions[0].id, answer: "x" }),
+          (e) => e.message === mod.MISSING_KEY_MESSAGE,
+        );
       });
     }
   });
 
-  test(`dist/${file} loads standalone, in the legacy shape both hosts give a context to`, () => withProcessKey("test-key", async () => {
-    const mod = await load(file);
-    assert.equal(mod.TOOL_DEFINITION.name, "manageKenteiScript");
-    assert.equal(mod.default, undefined, "no definePlugin factory: hosts would call it without a context");
-    // MulmoClaude's runtime loader: the export named after the tool, (context, args).
-    const guide = await mod.manageKenteiScript({}, { action: "getGuide" });
-    assert.match(guide.message, /KenteiScript/);
-    const inline = await mod.manageKenteiScript({}, { action: "present", script: structuredClone(sample) });
-    assert.equal(inline.data.script.meta.title, sample.meta.title);
-    // MulmoTerminal: pluginCore.execute(context, args), with the host's files.byPath for `path`.
-    const context = { files: { byPath: fakeByPath({ "quizzes/example.json": JSON.stringify(sample) }) } };
-    const byPath = await mod.pluginCore.execute(context, { action: "present", path: "quizzes/example.json" });
-    assert.equal(byPath.data.path, "quizzes/example.json");
-    assert.equal(byPath.data.script.meta.title, sample.meta.title);
-    const checked = await mod.pluginCore.execute(context, { action: "checkScript", path: "quizzes/example.json" });
-    assert.match(checked.message, /is a valid KenteiScript/);
-  }));
+  test(`dist/${file} loads standalone, in the legacy shape both hosts give a context to`, () =>
+    withProcessKey("test-key", async () => {
+      const mod = await load(file);
+      assert.equal(mod.TOOL_DEFINITION.name, "manageKenteiScript");
+      assert.equal(mod.default, undefined, "no definePlugin factory: hosts would call it without a context");
+      // MulmoClaude's runtime loader: the export named after the tool, (context, args).
+      const guide = await mod.manageKenteiScript({}, { action: "getGuide" });
+      assert.match(guide.message, /KenteiScript/);
+      const inline = await mod.manageKenteiScript({}, { action: "present", script: structuredClone(sample) });
+      assert.equal(inline.data.script.meta.title, sample.meta.title);
+      // MulmoTerminal: pluginCore.execute(context, args), with the host's files.byPath for `path`.
+      const context = { files: { byPath: fakeByPath({ "quizzes/example.json": JSON.stringify(sample) }) } };
+      const byPath = await mod.pluginCore.execute(context, { action: "present", path: "quizzes/example.json" });
+      assert.equal(byPath.data.path, "quizzes/example.json");
+      assert.equal(byPath.data.script.meta.title, sample.meta.title);
+      const checked = await mod.pluginCore.execute(context, { action: "checkScript", path: "quizzes/example.json" });
+      assert.match(checked.message, /is a valid KenteiScript/);
+    }));
 }

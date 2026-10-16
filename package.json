@@ -35,7 +35,7 @@
     "setup:cloudflare": "node scripts/setup.mjs --remote",
     "deploy": "node scripts/remote.mjs deploy",
     "remote": "node scripts/remote.mjs",
-    "build:plugin": "vite build --config vite.plugin.config.ts && vue-tsc -p tsconfig.plugin.json",
+    "build:plugin": "vite build --config vite.plugin.config.ts && vue-tsc -p tsconfig.plugin.json && node scripts/gen-plugin-types.mjs",
     "test:plugin": "node --test test/plugin-view.test.mjs"
   },
   "engines": {

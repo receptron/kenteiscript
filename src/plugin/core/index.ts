@@ -20,3 +20,4 @@ export {
 } from "./play.ts";
 export { toPlayState } from "./viewState.ts";
 export { resultsMessage, describeGrade } from "./results.ts";
+export type { KenteiScript, Question, Grade, Rules } from "../../kentei-script.ts";

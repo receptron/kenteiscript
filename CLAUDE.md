@@ -33,7 +33,8 @@ changes with those uses in mind, and do not claim them as supported until they a
   (host-neutral: tool definition, execute, game state, results message), `vue/` (View, Preview),
   `server.ts` (the `definePlugin` factory: tool call + the View's `{ kind: "grade" }` dispatch) and
   `grade.ts` (server-side JEV grading with the host's `TYPESAFE_API_KEY`). `npm run build:plugin`
-  builds it with vite into `dist/` (git-ignored). It may use Zod and Vue; the Worker must not, so
+  builds it with vite into `dist/` (git-ignored); `scripts/gen-plugin-types.mjs` then rewrites
+  `dist/types/kentei-script.d.ts` as plain types so the declarations do not import Zod. It may use Zod and Vue; the Worker must not, so
   nothing under `src/plugin/` is imported from `src/index.ts`, `src/grading.ts` or `src/game.ts`.
 - Package manager: **npm** (package-lock.json).
 - The npm package name is **`kenteiscript`** (npm names must be lowercase, so not `KenteiScript`),

@@ -26,17 +26,23 @@ export async function executeKentei(_context: ToolContext, args: unknown, gradin
     };
   }
   const { meta, rules, questions } = script;
+  const max = maxPoints(rules, questions);
   const data: KenteiData = { script, grading };
   const jsonData: KenteiJson = {
     title: meta.title,
     questions: questions.length,
     questionsPerGame: rules.questionsPerGame,
-    levels: `${rules.minLevel}-${rules.maxLevel}, starting at ${rules.startLevel}, max ${maxPoints(rules)} points`,
+    levels: `${rules.minLevel}-${rules.maxLevel}, starting at ${rules.startLevel}, max ${max} points`,
     grading,
   };
   const grader = grading === "jev" ? "each answer is graded by JEV as it is given" : "the answers come back ungraded, for you to grade";
+  // Shown anyway (the script is valid), but the LLM should know its top grades cannot be earned.
+  const unreachable = rules.grades.filter((g) => g.min > max).map((g) => g.grade);
+  const warning = unreachable.length
+    ? ` Note: a game can reach at most ${max} points, so grade${unreachable.length > 1 ? "s" : ""} ${unreachable.join(", ")} cannot be earned; lower the thresholds next time.`
+    : "";
   return {
-    message: `KenteiScript 「${meta.title}」 is shown to the user: ${rules.questionsPerGame} of ${questions.length} questions; ${grader}.`,
+    message: `KenteiScript 「${meta.title}」 is shown to the user: ${rules.questionsPerGame} of ${questions.length} questions; ${grader}.${warning}`,
     title: meta.title,
     data,
     jsonData,

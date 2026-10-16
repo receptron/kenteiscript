@@ -81,11 +81,31 @@ test("gradeFor, titleOf, maxPoints", () => {
   assert.equal(game.titleOf(grades[0]!, null), "名人");
   assert.equal(game.titleOf(grades[0]!, "勝手な称号"), "名人");
   assert.equal(game.titleOf(grades[1]!, "歴女"), "達人");
-  // The page used to show 3 + 4 + 5 × (n − 2), right only for start 3 / max 5.
-  assert.equal(game.maxPoints(rules), 47);
-  assert.equal(game.maxPoints({ questionsPerGame: 5, startLevel: 2, maxLevel: 3 }), 14);
   assert.equal(game.formatPoints(2.5), "2.5");
   assert.equal(game.formatPoints(3), "3");
+});
+
+const levels = (...ls: number[]) => ls.map((level) => ({ level }));
+
+test("maxPoints replays an all-correct game with the script's own questions", () => {
+  // Enough questions at every level: the level climbs 3, 4, 5, 5, …
+  assert.equal(game.maxPoints(rules, levels(...Array(10).fill(3), ...Array(10).fill(4), ...Array(10).fill(5))), 47);
+  // The ★5s run out after two: the rest come from ★4, the nearest level left.
+  assert.equal(game.maxPoints(rules, levels(...Array(10).fill(3), ...Array(10).fill(4), 5, 5)), 3 + 4 + 5 + 5 + 4 * 6);
+  // Fewer questions than questionsPerGame: the game ends when they run out.
+  assert.equal(game.maxPoints(rules, levels(3, 4)), 7);
+  // A tie (★2 and ★4 equally near ★3): both branches are tried. With two questions both orders
+  // give 6; with one, the better branch (★4) is kept.
+  const tie = { questionsPerGame: 2, startLevel: 3, maxLevel: 3 };
+  assert.equal(game.maxPoints(tie, levels(2, 4)), 6);
+  assert.equal(game.maxPoints({ ...tie, questionsPerGame: 1 }, levels(2, 4)), 4);
+});
+
+// The result screen used to show 3 + 4 + 5 × (n − 2). For the real quizzes nothing changes but
+// example, where that formula assumed start 3 / max 5.
+test("maxPoints of the quizzes in quizzes/", () => {
+  const got = Object.fromEntries(quizzes.map(([f, q]) => [f, game.maxPoints(q.rules, q.questions)]));
+  assert.deepEqual(got, { "example.json": 14, "ml.json": 47, "nihongo.json": 47, "sengoku.json": 47 });
 });
 
 test("public/game.js is src/game.ts with the types stripped", async () => {
@@ -98,5 +118,5 @@ test("public/game.js is src/game.ts with the types stripped", async () => {
   ];
   assert.equal(page.pickQuestion(qs, new Set(["a"]), 1, () => 0).id, game.pickQuestion(qs, new Set(["a"]), 1, () => 0)?.id);
   for (const c of [0, 0.25, 0.5, 1]) assert.equal(page.nextLevel(rules, 3, c), game.nextLevel(rules, 3, c));
-  assert.equal(page.maxPoints(rules), game.maxPoints(rules));
+  for (const [, q] of quizzes) assert.equal(page.maxPoints(q.rules, q.questions), game.maxPoints(q.rules, q.questions));
 });

@@ -97,7 +97,9 @@
             <div class="row">
               <span>第 {{ i + 1 }} 問</span>
               <span class="stars">{{ "★".repeat(questionById(script, h.id)?.level ?? 0) }}</span>
-              <span v-if="h.grade" :class="viewOf(h.grade).cls">{{ viewOf(h.grade).mark }} {{ viewOf(h.grade).label }}</span>
+              <span v-if="h.grade" :class="viewOf(h.grade, questionById(script, h.id)).cls">
+                {{ viewOf(h.grade, questionById(script, h.id)).mark }} {{ viewOf(h.grade, questionById(script, h.id)).label }}
+              </span>
             </div>
             <div class="q">{{ questionById(script, h.id)?.question }}</div>
             <div class="yours">あなたの答え：{{ h.answer || "（わからない）" }}</div>
@@ -113,7 +115,7 @@
 import { computed, inject, onBeforeUnmount, ref, watch } from "vue";
 import type { ToolResult } from "gui-chat-protocol";
 import { PLUGIN_RUNTIME_KEY } from "gui-chat-protocol/vue";
-import type { KenteiScript } from "../../kentei-script.ts";
+import type { KenteiScript, Question } from "../../kentei-script.ts";
 import { formatPoints, levelStep } from "../../game.ts";
 import type { AnswerGrade, GradingMode, KenteiData } from "../core/types.ts";
 import { TOOL_NAME } from "../core/definition.ts";
@@ -159,6 +161,9 @@ const state = ref<PlayState>({
 const grading = ref(false);
 const error = ref("");
 let restoring = false;
+// Bumped whenever a different game takes over the View (another result, a restart), so a grading
+// response that arrives afterwards is recognized as stale and dropped.
+let generation = 0;
 
 function isKenteiData(value: unknown): value is KenteiData {
   return typeof value === "object" && value !== null && "script" in value && typeof (value as { script: unknown }).script === "object";
@@ -168,6 +173,7 @@ function load(result: ToolResult): void {
   if (result.toolName && result.toolName !== TOOL_NAME) return;
   if (!isKenteiData(result.data)) return;
   restoring = true;
+  generation++;
   const s = result.data.script;
   const mode: GradingMode = result.data.grading === "jev" && runtime ? "jev" : "llm";
   script.value = s;
@@ -277,20 +283,25 @@ const CHOICE_VIEW: Record<string, { mark: string; label: string; cls: string }> 
   wrong: { mark: "✕", label: "不正解", cls: "bad" },
 };
 
-function viewOf(g: AnswerGrade): { mark: string; label: string; cls: string } {
+// A Score grade is shown out of the question's own rubric (criteria.length − 1 is the top level);
+// the four words for the levels apply only to the usual four-level rubric.
+function viewOf(g: AnswerGrade, q: Question | undefined): { mark: string; label: string; cls: string } {
   const cls = g.credit >= 1 ? "good" : g.credit >= 0.5 ? "mid" : "bad";
   if (g.type === "Choice") return CHOICE_VIEW[String(g.result)] ?? { mark: cls === "good" ? "◯" : cls === "mid" ? "△" : "✕", label: String(g.result), cls };
   const level = Number(g.result);
-  const top = SCORE_LABELS.length - 1;
-  return { mark: "★".repeat(level) || "―", label: `評価 ${level} / ${top}${SCORE_LABELS[level] ? ` 「${SCORE_LABELS[level]}」` : ""}`, cls };
+  const levels = q?.jev.type === "Score" ? q.jev.criteria.length : SCORE_LABELS.length;
+  const word = levels === SCORE_LABELS.length ? SCORE_LABELS[level] : undefined;
+  return { mark: "★".repeat(level) || "―", label: `評価 ${level} / ${levels - 1}${word ? ` 「${word}」` : ""}`, cls };
 }
 
-const lastView = computed(() => (lastRecord.value?.grade ? viewOf(lastRecord.value.grade) : { mark: "", label: "", cls: "" }));
+const lastView = computed(() =>
+  lastRecord.value?.grade && script.value ? viewOf(lastRecord.value.grade, questionById(script.value, lastRecord.value.id)) : { mark: "", label: "", cls: "" },
+);
 
 const dots = computed(() =>
   Array.from({ length: script.value?.rules.questionsPerGame ?? 0 }, (_, i) => {
     const h = state.value.history[i];
-    if (h) return h.grade ? `r-${viewOf(h.grade).cls}` : "r-plain";
+    if (h) return h.grade ? `r-${viewOf(h.grade, undefined).cls}` : "r-plain";
     return i === state.value.history.length ? "now" : "";
   }),
 );
@@ -307,6 +318,7 @@ const nextNote = computed(() => {
 
 function start(): void {
   if (!script.value) return;
+  generation++;
   state.value = advance(script.value, { ...state.value, phase: "start", history: [], level: script.value.rules.startLevel, sent: false });
 }
 
@@ -322,15 +334,22 @@ async function submit(raw: string): Promise<void> {
     return;
   }
   grading.value = true;
+  // The game and question this answer belongs to. Anything may happen while JEV grades it (the
+  // host selects another result, the View is reused for another game), so the response is applied
+  // only if this is still the game and the question on screen.
+  const asked = generation;
+  const stillAsked = () => asked === generation && script.value === s && state.value.phase === "question" && state.value.currentId === q.id;
   try {
     const grade = await runtime.dispatch({ kind: "grade", script: s, questionId: q.id, answer }, parseGrade);
-    state.value = recordAnswer(s, state.value, answer, grade);
+    if (stillAsked()) state.value = recordAnswer(s, state.value, answer, grade);
   } catch (e) {
+    if (!stillAsked()) return;
     error.value = `採点できませんでした（${e instanceof Error ? e.message : String(e)}）。もう一度「答える」を押してください。`;
     // After time is up the answer stays as it was sent; otherwise the countdown carries on.
-    if (!timedOut.value && script.value?.rules.timeLimitPerQuestion) startTimer(left);
+    if (!timedOut.value && s.rules.timeLimitPerQuestion) startTimer(left);
   } finally {
-    grading.value = false;
+    // A newer game has its own state (load() resets grading); leave it alone.
+    if (asked === generation) grading.value = false;
   }
 }
 

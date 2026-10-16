@@ -64,6 +64,17 @@ test("execute: a valid KenteiScript is shown, returning at once with instruction
   }
 });
 
+test("maxPoints of the sample script follows its question pool, and its grades are all reachable", async () => {
+  // Levels 1, 2, 2, 3 from ★2: all correct asks ★2, ★3, then ★3 has run out (★2, then ★1) = 8, not 2 + 3 + 3 + 3.
+  const r = await executeKentei({}, clone(SAMPLE_SCRIPT));
+  assert.match(r.jsonData!.levels, /max 8 points/);
+  assert.ok(SAMPLE_SCRIPT.rules.grades.every((g) => g.min <= 8));
+  assert.doesNotMatch(r.message, /cannot be earned/);
+  const greedy = clone(SAMPLE_SCRIPT);
+  greedy.rules.grades[0]!.min = 9;
+  assert.match((await executeKentei({}, greedy)).message, /at most 8 points, so grade A cannot be earned/);
+});
+
 test("execute: an invalid KenteiScript returns every schema error and no data", async () => {
   const bad = clone(SAMPLE_SCRIPT) as Record<string, any>;
   bad.questions[0].explaination = "typo";
@@ -172,9 +183,9 @@ test("a graded game adapts the level, ends after questionsPerGame, and reports e
   const t = summary(script, s);
   assert.equal(t.points, 3.5);
   assert.equal(t.grade.grade, "C");
-  assert.equal(t.max, 11);
+  assert.equal(t.max, 8);
   const msg = resultsMessage(script, s);
-  assert.equal(msg.split("\n")[0], "**光合成ミニ検定 — result: C 「これから芽が出る人」 (3.5 / 11 points)**");
+  assert.equal(msg.split("\n")[0], "**光合成ミニ検定 — result: C 「これから芽が出る人」 (3.5 / 8 points)**");
   assert.match(msg, /- Q1 \[L2-01\] ★2 「光合成でつくられる気体は何ですか？」 — answer: 「酸素」 — correct \(0\.95\)/);
   assert.match(msg, /- Q2 \[L3-01\] ★3 .* — answer: 「光がないから 呼吸だけになる」 — 2\/3 \(0\.71\)/);
   assert.match(msg, /- Q3 \[L2-02\] .* — answer: \(no answer\) — wrong \(0\.99\)/);

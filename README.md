@@ -146,7 +146,8 @@ definition, with a comment on every field.
 - A full-credit answer (credit 1: `correct`, or the top Score level) moves the next question
   **up** a level; at least half credit (`close`, or level 2) keeps the level; anything less moves
   it **down**. When a level has no unused question left, the next one comes from the nearest level
-  that has one.
+  that has one. The maximum shown with the result is the best an all-correct game can score with
+  the script's actual questions (`maxPoints` in `src/game.ts`), so it accounts for levels running out.
 - With `timeLimitPerQuestion`, each question has that many seconds. The view keeps the time, not
   the server: it shows the time left (and the limit on the start screen), and when time is up it
   submits what is in the answer box, as if the player had pressed 答える (an empty box is no
@@ -284,7 +285,10 @@ npm run build:plugin   # dist/: index.js (server), vue.js (View, Preview), style
 | `kenteiscript/plugin/style.css` | `dist/style.css` | the View's styles (scoped; inject it into the host's plugin frame) |
 
 `vue` and `gui-chat-protocol` stay external (peer dependencies), so the plugin shares the host's
-instances; Zod is bundled. `main` points at `dist/index.js` and the files sit at `dist/vue.js` and
+instances; Zod is bundled. The declarations in `dist/types/` need no Zod either:
+`scripts/gen-plugin-types.mjs` replaces the emitted `kentei-script.d.ts` (which declares the schema
+objects) with the inferred types written out as plain TypeScript, and fails the build if any
+declaration still imports `zod`. `main` points at `dist/index.js` and the files sit at `dist/vue.js` and
 `dist/style.css`, the layout MulmoClaude's runtime-plugin loader expects of a packed tarball.
 
 - **MulmoTerminal:** add `"kenteiscript/plugin"` to `plugins/plugins.json` `packages` (the

@@ -75,7 +75,7 @@ export function summary(script: KenteiScript, state: PlayState) {
   const points = state.history.reduce((sum, h) => sum + (h.grade?.points ?? 0), 0);
   const graded = state.history.length > 0 && state.history.every((h) => h.grade);
   const grade = gradeFor(script.rules.grades, points);
-  return { points, max: maxPoints(script.rules), graded, grade, title: titleOf(grade, state.titleChoice) };
+  return { points, max: maxPoints(script.rules, script.questions), graded, grade, title: titleOf(grade, state.titleChoice) };
 }
 
 /** Cuts an answer to what is graded: trimmed, at most MAX_ANSWER_CHARS. */

@@ -453,7 +453,7 @@ async function showResult() {
   // The server's total is the recorded one; fall back to ours if it could not be reached.
   const points = finished ? finished.points : game.points;
   const grade = gradeFor(points);
-  const max = kentei.maxPoints(bank.rules);
+  const max = kentei.maxPoints(bank.rules, bank.questions);
   $("r-grade").textContent = grade.grade;
   $("r-title").textContent = titleOf(grade);
   $("r-score").textContent = `${points % 1 ? points.toFixed(1) : points} 点（最高 ${max} 点）`;

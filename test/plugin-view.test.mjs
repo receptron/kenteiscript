@@ -26,8 +26,8 @@ const flush = async () => {
   }
 };
 
-async function mount({ grading, runtime }) {
-  const result = await executeKentei({}, structuredClone(SAMPLE_SCRIPT));
+async function mount({ grading, runtime, script = SAMPLE_SCRIPT }) {
+  const result = await executeKentei({}, structuredClone(script));
   const props = reactive({ selectedResult: { ...result, data: { ...result.data, grading }, toolName: "presentKentei", uuid: "u1" } });
   const sent = [];
   const updates = [];
@@ -58,7 +58,7 @@ async function mount({ grading, runtime }) {
     ta.dispatchEvent(new dom.window.Event("input", { bubbles: true }));
     await flush();
   };
-  return { el, $, click, type, sent, updates, app };
+  return { el, $, click, type, sent, updates, app, props };
 }
 
 test("with a runtime and a key: each answer is graded through dispatch, and the result goes to the chat", async () => {
@@ -170,4 +170,60 @@ test("rules.timeLimitPerQuestion: the View counts down and submits what is in th
   assert.equal(current.viewState.history[0].answer, "時間切れの答え");
   assert.equal(el.querySelector('[data-testid="kentei-timer"]'), null, "no countdown on the feedback screen");
   app.unmount();
+});
+
+test("a grading response that arrives after another game took over the View is dropped", async () => {
+  let resolve;
+  const runtime = {
+    dispatch(args, parse) {
+      return new Promise((r) => {
+        resolve = () => r(parse({ type: "Choice", result: "correct", probabilities: { correct: 0.9 }, credit: 1, points: 2 }));
+      });
+    },
+  };
+  const v = await mount({ grading: "jev", runtime });
+  await v.click("kentei-start-button");
+  await v.type("酸素");
+  await v.click("kentei-submit");
+  assert.match(v.$("kentei-submit").textContent, /採点中/);
+
+  // The host selects another presentKentei result while JEV is still grading.
+  const other = structuredClone(SAMPLE_SCRIPT);
+  other.meta.title = "別の検定";
+  const next = await executeKentei({}, other);
+  v.props.selectedResult = { ...next, data: { ...next.data, grading: "jev" }, toolName: "presentKentei", uuid: "u2" };
+  await flush();
+  assert.match(v.el.textContent, /別の検定/);
+  await v.click("kentei-start-button");
+  const updatesBefore = v.updates.length;
+
+  resolve();
+  await flush();
+  assert.ok(v.$("kentei-question"), "the new game is still on its first question");
+  assert.equal(v.$("kentei-feedback"), null);
+  assert.match(v.$("kentei-submit").textContent, /答える/, "the new game is not left in 採点中");
+  assert.ok(v.updates.slice(updatesBefore).every((u) => u.viewState.history.length === 0), "the old grade is not recorded");
+  v.app.unmount();
+});
+
+test("a Score grade is shown out of the question's own rubric", async () => {
+  const script = structuredClone(SAMPLE_SCRIPT);
+  script.rules.credit.Score = [0, 0.5, 1];
+  script.questions = script.questions.filter((q) => q.jev.type === "Score");
+  script.questions[0].jev.criteria = ["無回答", "一部", "十分"];
+  script.rules.questionsPerGame = 1;
+  script.rules.minLevel = script.rules.startLevel = script.rules.maxLevel = script.questions[0].level;
+  script.rules.grades = [{ grade: "A", min: 0, title: "ok" }];
+  const runtime = { dispatch: async (args, parse) => parse({ type: "Score", result: 1, probabilities: { 0: 0.1, 1: 0.8, 2: 0.1 }, credit: 0.5, points: 1.5 }) };
+  const v = await mount({ grading: "jev", runtime, script });
+  await v.click("kentei-start-button");
+  await v.type("呼吸");
+  await v.click("kentei-submit");
+  const fb = v.$("kentei-feedback").textContent;
+  assert.match(fb, /評価 1 \/ 2/);
+  assert.doesNotMatch(fb, /もう一歩|\/ 3/, "the four-level words are not used for a three-level rubric");
+  await v.click("kentei-next");
+  assert.match(v.$("kentei-result").textContent, /評価 1 \/ 2/);
+  assert.match(v.sent[0], /— 1\/2 \(0\.80\)/);
+  v.app.unmount();
 });

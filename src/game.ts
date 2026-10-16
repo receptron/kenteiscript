@@ -71,13 +71,44 @@ export function titleOf(grade: Pick<Grade, "title" | "titleChoices">, choice?: s
 }
 
 /**
- * The most points a game can reach: every answer earns full credit, so the level climbs one step
- * per question from startLevel and stays at maxLevel.
+ * The most points a game of this script can reach. It replays a game in which every answer earns
+ * full credit, so the game's level climbs one step per question from startLevel and stays at
+ * maxLevel, with the script's actual questions and pickQuestion's rule: an unused question at that
+ * level, else one from the nearest level that has one. Points come from the level of the question
+ * actually asked, so a small script whose levels run out scores less than the levels alone suggest.
+ *
+ * Which question within a level is asked does not change the points. The only real choice is a
+ * tie, when the nearest levels above and below are equally far; pickQuestion picks between them at
+ * random, so this tries both and keeps the better total (memoized on what is left of each level).
+ * The result is exact and deterministic: the best total some sequence of picks can produce.
  */
-export function maxPoints(rules: Pick<Rules, "questionsPerGame" | "startLevel" | "maxLevel">): number {
-  let total = 0;
-  for (let i = 0; i < rules.questionsPerGame; i++) total += Math.min(rules.maxLevel, rules.startLevel + i);
-  return total;
+export function maxPoints(
+  rules: Pick<Rules, "questionsPerGame" | "startLevel" | "maxLevel">,
+  questions: readonly Pick<Question, "level">[],
+): number {
+  const levels = [...new Set(questions.map((q) => q.level))].sort((a, b) => a - b);
+  const counts = levels.map((l) => questions.filter((q) => q.level === l).length);
+  const memo = new Map<string, number>();
+  const best = (step: number): number => {
+    if (step >= rules.questionsPerGame) return 0;
+    const want = Math.min(rules.maxLevel, rules.startLevel + step);
+    const available = levels.filter((_, k) => counts[k]! > 0);
+    if (!available.length) return 0;
+    const key = `${step}:${counts.join(",")}`;
+    const known = memo.get(key);
+    if (known !== undefined) return known;
+    const nearest = Math.min(...available.map((l) => Math.abs(l - want)));
+    let top = 0;
+    levels.forEach((level, k) => {
+      if (!counts[k] || Math.abs(level - want) !== nearest) return;
+      counts[k]!--;
+      top = Math.max(top, level + best(step + 1));
+      counts[k]!++;
+    });
+    memo.set(key, top);
+    return top;
+  };
+  return best(0);
 }
 
 /** Points as the player sees them: whole numbers as is, halves with one decimal. */

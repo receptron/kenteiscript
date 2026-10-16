@@ -93,6 +93,7 @@ deploy, so a bad file fails the build, not a game. Consequences:
   the Worker applies to the bundled quizzes) is Choice correct/close/wrong, Score [0, 0, 0.5, 1].
 
 ## Run after changes
+- `yarn format` — Prettier over the whole repo (`.prettierrc.json`); CI runs `yarn format:check`.
 - `yarn typecheck` — regenerates `src/quizzes.gen.ts`, `public/game.js` and the Worker types,
   then runs `tsc` (Worker, scripts, tests) and `vue-tsc -p tsconfig.plugin.json` (the plugin,
   with stricter flags).
@@ -111,7 +112,7 @@ deploy, so a bad file fails the build, not a game. Consequences:
   real (pennies), prints the probability of every grade, and is the only check that a rubric
   grades the way you meant. `typecheck` and `yarn test` pass with a rubric that grades nonsense.
 
-CI (`.github/workflows/ci.yml`) runs typecheck, `check:quizzes`, the unit tests, the plugin build
+CI (`.github/workflows/ci.yml`) runs `format:check`, typecheck, `check:quizzes`, the unit tests, the plugin build
 and View test, and `yarn test` for every quiz on each push and PR. It has no JEV key: `scripts/mock-jev.mjs` stands in, reached through the Worker's
 `JEV_URL` var (`wrangler dev --var JEV_URL:…`), and grades everything as the lowest grade while
 rejecting a malformed request. So CI proves the plumbing, never the rubrics — `test:grading` with

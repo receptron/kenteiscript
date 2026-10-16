@@ -9,6 +9,8 @@ wrangler.remote.jsonc
 node_modules/
 .wrangler/
 src/quizzes.gen.ts
+public/game.js
+dist/
 worker-configuration.d.ts
 
 # test output

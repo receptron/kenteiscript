@@ -26,6 +26,9 @@ jobs:
       - run: npm ci
       - run: npm run typecheck
       - run: npm run check:quizzes
+      - run: npm run test:unit
+      - run: npm run build:plugin
+      - run: npm run test:plugin
 
       - name: Set up local D1
         run: |

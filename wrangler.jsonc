@@ -3,8 +3,9 @@
   "name": "mulmo-kentei",
   "main": "src/index.ts",
   "compatibility_date": "2026-09-01",
-  // Bundles quizzes/*.json into the Worker before every `wrangler dev` / `wrangler deploy`.
-  "build": { "command": "node scripts/gen-quizzes.mjs", "watch_dir": ["quizzes", "src"] },
+  // Bundles quizzes/*.json into the Worker, and writes the page's copy of the game rules
+  // (public/game.js from src/game.ts), before every `wrangler dev` / `wrangler deploy`.
+  "build": { "command": "node scripts/gen-quizzes.mjs && node scripts/gen-game.mjs", "watch_dir": ["quizzes", "src"] },
   "assets": { "directory": "public" },
   "vars": {
     // The quiz shown at "/". Any other quiz is reachable at /?quiz=<file name without .json>.

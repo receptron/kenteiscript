@@ -2,27 +2,86 @@
   "name": "kenteiscript",
   "version": "0.1.0",
   "description": "KenteiScript: a small JSON language for quizzes and tests, written by an LLM, with answers in the taker's own words graded by a decision model (TypeSafe JEV). Includes MulmoKentei, a sample runtime on Cloudflare Workers + D1",
-  "private": true,
+  "keywords": [
+    "kenteiscript",
+    "quiz",
+    "test",
+    "exam",
+    "dsl",
+    "llm",
+    "decision-model",
+    "gui-chat-protocol",
+    "mcp"
+  ],
+  "author": "Satoshi Nakajima",
+  "homepage": "https://github.com/receptron/kenteiscript#readme",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/receptron/kenteiscript.git"
+  },
+  "bugs": {
+    "url": "https://github.com/receptron/kenteiscript/issues"
+  },
   "type": "module",
   "license": "MIT",
+  "main": "./dist/index.js",
+  "exports": {
+    "./plugin": {
+      "types": "./dist/types/plugin/server.d.ts",
+      "import": "./dist/index.js",
+      "require": "./dist/index.cjs"
+    },
+    "./plugin/vue": {
+      "types": "./dist/types/plugin/vue/index.d.ts",
+      "import": "./dist/vue.js",
+      "require": "./dist/vue.cjs"
+    },
+    "./plugin/style.css": "./dist/style.css",
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "dist"
+  ],
   "scripts": {
     "setup": "node scripts/setup.mjs",
     "dev": "wrangler dev",
     "test": "node scripts/test-api.mjs",
+    "test:unit": "node --test test/*.test.ts",
     "test:grading": "node scripts/test-grading.ts",
     "check:quizzes": "node scripts/check-quizzes.mjs",
     "mock:jev": "node scripts/mock-jev.mjs",
-    "typecheck": "node scripts/gen-quizzes.mjs && wrangler types && tsc --noEmit",
+    "typecheck": "node scripts/gen-quizzes.mjs && node scripts/gen-game.mjs && wrangler types && tsc --noEmit && vue-tsc -p tsconfig.plugin.json --noEmit",
     "setup:cloudflare": "node scripts/setup.mjs --remote",
     "deploy": "node scripts/remote.mjs deploy",
-    "remote": "node scripts/remote.mjs"
+    "remote": "node scripts/remote.mjs",
+    "build:plugin": "vite build --config vite.plugin.config.ts && vue-tsc -p tsconfig.plugin.json && node scripts/gen-plugin-types.mjs",
+    "test:plugin": "node --test test/plugin-view.test.mjs test/plugin-standalone.test.mjs",
+    "prepublishOnly": "npm run build:plugin && npm run test:plugin"
   },
   "engines": {
     "node": ">=22.18"
   },
+  "peerDependencies": {
+    "gui-chat-protocol": "^2.3.0",
+    "vue": "^3.5.0"
+  },
+  "peerDependenciesMeta": {
+    "gui-chat-protocol": {
+      "optional": true
+    },
+    "vue": {
+      "optional": true
+    }
+  },
   "devDependencies": {
     "@types/node": "^24.19.2",
+    "@vitejs/plugin-vue": "6.0.9",
+    "gui-chat-protocol": "2.3.0",
+    "jsdom": "30.1.1",
     "typescript": "^5.9.3",
+    "vite": "8.3.1",
+    "vue": "3.5.43",
+    "vue-tsc": "3.3.11",
     "wrangler": "^4.151.0",
     "zod": "4.6.5"
   },

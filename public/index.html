@@ -233,7 +233,11 @@
   </section>
 </div>
 
-<script>
+<script type="module">
+// The game rules (level moves, question picking, grades) are shared with the Worker and the chat
+// plugin: /game.js is generated from src/game.ts by scripts/gen-game.mjs.
+import * as kentei from "/game.js";
+
 const $ = (id) => document.getElementById(id);
 const esc = (s) => String(s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]);
 
@@ -287,11 +291,9 @@ function stars(level) {
   return "★".repeat(level) + `<span class="off">${"★".repeat(5 - level)}</span>`;
 }
 
-// up / stay / down, following rules.next in questions.json
+// up / stay / down, from the credit the answer earned
 function move(g) {
-  if (g.type === "Choice") return g.result === "correct" ? 1 : g.result === "close" ? 0 : -1;
-  const level = Number(g.result);
-  return level === 3 ? 1 : level === 2 ? 0 : -1;
+  return kentei.levelStep(g.credit);
 }
 
 function view(g) {
@@ -303,19 +305,15 @@ function view(g) {
 
 // A random unused question at this level; if the level has run out, the nearest level that has one.
 function pickQuestion(level) {
-  const unused = bank.questions.filter((q) => !game.used.has(q.id));
-  const distance = (q) => Math.abs(q.level - level);
-  const nearest = Math.min(...unused.map(distance));
-  const pool = unused.filter((q) => distance(q) === nearest);
-  return pool[Math.floor(Math.random() * pool.length)];
+  return kentei.pickQuestion(bank.questions, game.used, level);
 }
 
 function gradeFor(points) {
-  return bank.rules.grades.find((g) => points >= g.min);
+  return kentei.gradeFor(bank.rules.grades, points);
 }
 
 function titleOf(grade) {
-  return grade.titleChoices && game.honor ? game.honor : grade.title;
+  return kentei.titleOf(grade, game.honor);
 }
 
 function renderProgress() {
@@ -400,7 +398,7 @@ function showFeedback(g) {
   $("fb-explain").textContent = g.explanation;
   const step = move(g);
   const before = game.level;
-  game.level = Math.min(bank.rules.maxLevel, Math.max(bank.rules.minLevel, game.level + step));
+  game.level = kentei.nextLevel(bank.rules, game.level, g.credit);
   const last = game.history.length >= bank.rules.questionsPerGame;
   $("fb-next").textContent = last ? ""
     : game.level > before ? "次は難しくなります。"
@@ -455,7 +453,7 @@ async function showResult() {
   // The server's total is the recorded one; fall back to ours if it could not be reached.
   const points = finished ? finished.points : game.points;
   const grade = gradeFor(points);
-  const max = 3 + 4 + 5 * (bank.rules.questionsPerGame - 2);
+  const max = kentei.maxPoints(bank.rules, bank.questions);
   $("r-grade").textContent = grade.grade;
   $("r-title").textContent = titleOf(grade);
   $("r-score").textContent = `${points % 1 ? points.toFixed(1) : points} 点（最高 ${max} 点）`;

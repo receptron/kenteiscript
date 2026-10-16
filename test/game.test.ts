@@ -10,9 +10,17 @@ import type { KenteiScript } from "../src/kentei-script.ts";
 const root = new URL("..", import.meta.url).pathname;
 const quizzes: [string, KenteiScript][] = readdirSync(join(root, "quizzes"))
   .filter((f) => f.endsWith(".json") && !f.endsWith(".tests.json"))
-  .map((f) => [f, JSON.parse(readFileSync(join(root, "quizzes", f), "utf8")) as KenteiScript]);
+  // As the Worker reads them: rules.credit may be left out (the schema's default).
+  .map((f) => [f, game.withDefaultCredit(JSON.parse(readFileSync(join(root, "quizzes", f), "utf8"))) as KenteiScript]);
 
 const usualCredit = { Choice: { correct: 1, close: 0.5, wrong: 0 }, Score: [0, 0, 0.5, 1] };
+
+test("withDefaultCredit fills rules.credit only when it is left out", () => {
+  assert.deepEqual(game.withDefaultCredit({ rules: {} }).rules.credit, usualCredit);
+  assert.deepEqual(game.defaultCredit(), usualCredit);
+  const own = { Choice: { right: 1, wrong: 0 }, Score: [0, 1] };
+  assert.equal(game.withDefaultCredit({ rules: { credit: own } }).rules.credit, own);
+});
 const rules = { minLevel: 1, maxLevel: 5, startLevel: 3, questionsPerGame: 10, credit: usualCredit };
 
 test("levelStep: full credit up, at least half stays, less down", () => {

@@ -305,7 +305,7 @@ test("questions that promise options, and a start screen that talks about Choice
     "There are no multiple-choice questions; type each answer.",
   ];
   fine.questions[0]!.question = "写真を「猫」「犬」のどれかに分けるタスクを何という？";
-  fine.questions[1]!.question = "家康が江戸を選んで本拠にした理由は？";
+  fine.questions[1]!.question = "家康が江戸を選んで本拠にした理由は？ 利用者が配送方法を選べます。選べません、の場合は？";
   fine.questions[2]!.question = "Explain why a neural network might choose the wrong class.";
   fine.questions[3]!.question = "SELECT COUNT(*) FROM users; このSQLは何を返しますか？";
   const fineShown = await present(fine);
@@ -313,7 +313,7 @@ test("questions that promise options, and a start screen that talks about Choice
   assert.doesNotMatch(fineShown.message, /Not fixed/);
   const imperative = clone(SAMPLE_SCRIPT);
   imperative.questions[0]!.question = "Choose the correct past tense: 'She ___ to school yesterday.'";
-  imperative.questions[1]!.question = "最も近い説明を選んでください。";
+  imperative.questions[1]!.question = "最も近い説明を一つ選べ。";
   imperative.questions[2]!.question = "Fill in the blank. Select the right word: 'I ___ tired.'";
   const refused = await present(imperative);
   assert.equal(refused.data, undefined);

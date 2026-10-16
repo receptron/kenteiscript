@@ -23,7 +23,7 @@ export const INJECTION_GUARD_EN = {
 //     same clause denies them (「選択肢はありません」, "There are no multiple-choice questions"), and
 //     must not use the grading types' names, which are the author's vocabulary.
 const ASKS_TO_PICK = [
-  /[はがの]どれ(です|でしょう|か?\s*[？?])|どれが(正しい|適切|当てはまる)|(を|から)選んで(ください|下さい|答え)|選びなさい|選べ(?![るばなた])|次のうち|以下のうち|下記のうち|次の中から/,
+  /[はがの]どれ(です|でしょう|か?\s*[？?])|どれが(正しい|適切|当てはまる)|(を|から)選んで(ください|下さい|答え)|選びなさい|選べ(?=[。．！？!?」\s]|$)|次のうち|以下のうち|下記のうち|次の中から/,
   /[Ww]hich of the following|\bthe (options|choices) (below|above|given|listed)\b/,
   // An imperative, capitalised and followed by an ordinary word: not SQL's SELECT.
   /(^|[.:;!?]\s*)(Choose|Select|Pick) (the|one|a|an|from|which|all|two|three)\b/,

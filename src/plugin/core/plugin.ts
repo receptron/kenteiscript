@@ -121,14 +121,15 @@ function checkResult(script: KenteiScript, path: string | undefined): KenteiResu
 }
 
 /**
- * present: check the script as checkScript does and, when nothing needs fixing, show the quiz,
- * returning at once and letting the results arrive as the next message. Refusing on an authoring
- * problem (an option-picking question, a missing injection guard, an unreachable grade) costs one
- * call; showing it would cost a quiz that cannot be answered or graded as written.
+ * present: check the script as checkScript does and, unless a blocking problem needs fixing, show
+ * the quiz, returning at once and letting the results arrive as the next message. Refusing on a
+ * blocking problem (an option-picking question, a missing injection guard) costs one call; showing
+ * it would cost a quiz that cannot be answered or graded as written. The other problems are
+ * reported with the shown quiz.
  */
 function presentResult(script: KenteiScript, path: string | undefined): KenteiResult {
   const issues = authoringIssues(script, { minPerLevel: 1 });
-  if (issues.length) {
+  if (issues.some((i) => i.blocking)) {
     return step(
       `Nothing was shown. ${summary(script, path)}\n${listIssues(issues)}`,
       `Fix every problem${path ? ` in ${path}` : ""} and call present again${path ? " with the same path" : " with the whole script"}. ${KEEP_GOING}`,
@@ -136,6 +137,8 @@ function presentResult(script: KenteiScript, path: string | undefined): KenteiRe
   }
   const { meta, rules, questions } = script;
   const max = maxPoints(rules, questions);
+  // Shown anyway, but the LLM should know (next time) what it did not get right.
+  const notes = issues.length ? ` Not fixed, shown anyway: ${issues.map((i) => `${i.where}: ${i.message}`).join("; ")}.` : "";
   const data: KenteiData = path ? { script, path } : { script };
   const jsonData: KenteiJson = {
     title: meta.title,
@@ -146,7 +149,7 @@ function presentResult(script: KenteiScript, path: string | undefined): KenteiRe
   };
   return {
     toolName: TOOL_NAME,
-    message: `KenteiScript 「${meta.title}」${path ? ` (from ${path})` : ""} is shown to the user: ${rules.questionsPerGame} of ${questions.length} questions; each answer is graded by JEV as it is given.`,
+    message: `KenteiScript 「${meta.title}」${path ? ` (from ${path})` : ""} is shown to the user: ${rules.questionsPerGame} of ${questions.length} questions; each answer is graded by JEV as it is given.${notes}`,
     title: meta.title,
     data,
     jsonData,

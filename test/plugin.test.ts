@@ -189,11 +189,11 @@ test("maxPoints of the sample script follows its question pool, and its grades a
   assert.doesNotMatch(r.message, /cannot be earned/);
   const greedy = clone(SAMPLE_SCRIPT);
   greedy.rules.grades[0]!.min = 9;
-  const refused = await present(greedy);
-  assert.equal(refused.data, undefined, "an unreachable grade is fixed before the quiz is shown");
-  assert.match(refused.message, /^Nothing was shown\. /);
-  assert.match(refused.message, /grade A needs 9 points, but a game with the best answer every time reaches 8; set the grades from 8/);
-  assert.equal(refused.instructionsRequired, true);
+  // maxPoints is an estimate, so an unreachable grade is reported but does not stop the quiz.
+  const shown = await present(greedy);
+  assert.ok(shown.data);
+  assert.match(shown.message, /Not fixed, shown anyway: rules: grade A needs 9 points, but a game with the best answer every time reaches 8; set the grades from 8/);
+  assert.match((await check({ script: greedy })).message, /grade A needs 9 points/);
 });
 
 test("present: an invalid KenteiScript returns every schema error and shows nothing", async () => {
@@ -286,7 +286,7 @@ test("questions that promise options, and a start screen that talks about Choice
   assert.match(r.message, /- meta: 「Choice問題は4択、Score問題は記述式です。」/);
   // Saying there are no options is fine, as the sample quizzes do.
   const fine = clone(SAMPLE_SCRIPT);
-  fine.meta.rules = ["選択肢はありません。答えは自分の言葉で書いてください。"];
+  fine.meta.rules = ["選択肢はありません。答えは自分の言葉で書いてください。", "選択肢は表示されません。", "選択肢は出てきません。"];
   fine.questions[0]!.question = "写真を「猫」「犬」のどれかに分けるタスクを何という？";
   assert.ok((await present(fine)).data);
 });

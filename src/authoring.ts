@@ -17,7 +17,7 @@ export const INJECTION_GUARD_EN = {
 // always types the answer ("Choice" is the grader choosing a label), so a question that says
 // 「次のうちどれ」 or "Which of the following" cannot be answered as asked.
 const OPTIONS_WORDING = [
-  /[はがの]どれ(です|でしょう|か?\s*[？?])|どれが(正しい|適切|当てはまる)|選んで|選びなさい|選べ|次のうち|以下のうち|下記のうち|次の中から|選択肢(?!は?(ありません|なし|ない))|[0-9０-９一二三四五六]択/,
+  /[はがの]どれ(です|でしょう|か?\s*[？?])|どれが(正しい|適切|当てはまる)|選んで|選びなさい|選べ|次のうち|以下のうち|下記のうち|次の中から|選択肢(?![^。！？!?]*(ません|ない|なし))|[0-9０-９一二三四五六]択/,
   /which of the following|\b(choose|select|pick) (the|one|a|an|from)\b|\bthe (options|choices)\b|multiple[- ]choice/i,
 ];
 // The grading types are the author's vocabulary, not the player's.
@@ -27,6 +27,13 @@ export interface AuthoringIssue {
   /** Where: a question id, "meta" or "rules". */
   where: string;
   message: string;
+  /**
+   * Whether the chat plugin's present refuses to show the script for it: a missing injection
+   * guard, or wording that offers options, makes a quiz that cannot be graded or answered as
+   * written. The others (a level with no question, an unreachable grade) are reported but shown
+   * anyway: a game falls back to the nearest level, and maxPoints is an estimate, not a proof.
+   */
+  blocking: boolean;
 }
 
 /**
@@ -45,18 +52,19 @@ export function authoringIssues(script: KenteiScript, options: { minPerLevel: nu
   for (const q of questions) {
     const type = q.jev.type;
     if (!q.jev.instructions.includes(INJECTION_GUARD[type]) && !q.jev.instructions.includes(INJECTION_GUARD_EN[type])) {
-      issues.push({ where: q.id, message: `instructions must end with the injection guard: 「${INJECTION_GUARD[type]}。」 (or in English: "${INJECTION_GUARD_EN[type]}.")` });
+      issues.push({ where: q.id, blocking: true, message: `instructions must end with the injection guard: 「${INJECTION_GUARD[type]}。」 (or in English: "${INJECTION_GUARD_EN[type]}.")` });
     }
     if (OPTIONS_WORDING.some((re) => re.test(q.question))) {
       issues.push({
         where: q.id,
+        blocking: true,
         message: "the question asks the player to pick from options, but no options are shown: the player types the answer. Ask for the answer itself (「〜は何？」, \"What is ...?\")",
       });
     }
   }
   for (const line of [meta.intro, ...meta.rules]) {
     if (OPTIONS_WORDING.some((re) => re.test(line)) || GRADING_TERMS.test(line)) {
-      issues.push({ where: "meta", message: `「${line}」: every answer is typed in the player's own words; do not promise options or mention Choice / Score questions` });
+      issues.push({ where: "meta", blocking: true, message: `「${line}」: every answer is typed in the player's own words; do not promise options or mention Choice / Score questions` });
     }
   }
   const perLevel = new Map<number, number>();
@@ -64,13 +72,14 @@ export function authoringIssues(script: KenteiScript, options: { minPerLevel: nu
   const need = Math.min(options.minPerLevel, rules.questionsPerGame);
   for (let level = rules.minLevel; level <= rules.maxLevel; level++) {
     const n = perLevel.get(level) ?? 0;
-    if (n < need) issues.push({ where: "rules", message: `level ${level} has ${n} questions; keep at least ${need}` });
+    if (n < need) issues.push({ where: "rules", blocking: false, message: `level ${level} has ${n} questions; keep at least ${need}` });
   }
   const max = maxPoints(rules, questions);
   for (const g of rules.grades) {
     if (g.min > max) {
       issues.push({
         where: "rules",
+        blocking: false,
         message: `grade ${g.grade} needs ${g.min} points, but a game with the best answer every time reaches ${max}; set the grades from ${max} (e.g. about ${Math.round(max * 0.8)}, ${Math.round(max * 0.55)}, ${Math.round(max * 0.3)}, 0)`,
       });
     }
@@ -89,7 +98,7 @@ A KenteiScript is a quiz the user answers by TYPING each answer in their own wor
 - Everything in the user's language: meta, questions, explanations, instructions and criteria.
 - 3-10 questions, levels 1-3 starting at 2, at least one question per level; questionsPerGame no more than the number of questions. A full-credit answer moves the next question up a level, half credit keeps it, less moves it down.
 - Leave out rules.credit. The default gives Choice the labels correct (1) / close (0.5) / wrong (0) and Score 4 levels (0-3, worth 0 / 0 / 0.5 / 1). Points are level x credit.
-- rules.grades highest first, the last with min 0, every min reachable: present and checkScript report the points of a perfect game and refuse a grade above it.
+- rules.grades highest first, the last with min 0, every min reachable: present and checkScript report the points of a perfect game; keep every min at or below it.
 - meta.rules tells the player how the quiz works in their terms. Never mention Choice / Score, 「4択」 or "multiple choice".
 
 ## Two kinds of question (both are typed answers)

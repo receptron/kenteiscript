@@ -25,8 +25,8 @@ export const INJECTION_GUARD_EN = {
 const ASKS_TO_PICK = [
   /[はがの]どれ(です|でしょう|か?\s*[？?])|どれが(正しい|適切|当てはまる)|(を|から)選んで(ください|下さい|答え)|選びなさい|選べ(?=[。．！？!?」\s]|$)|次のうち|以下のうち|下記のうち|次の中から/,
   /[Ww]hich of the following|\bthe (options|choices) (below|above|given|listed)\b/,
-  // An imperative, capitalised and followed by an ordinary word: not SQL's SELECT.
-  /(^|[.:;!?]\s*)(Choose|Select|Pick) (the|one|a|an|from|which|all|two|three)\b/,
+  // An imperative to pick THE right one (not SQL's SELECT, not an open "Choose a source and explain").
+  /(^|[.:;!?]\s*)(Choose|Select|Pick) (the (correct|right|best|most|true|false|incorrect|wrong|appropriate)\b|from\b|(the )?(answer|option)s?\b)/,
 ];
 const OFFERS_OPTIONS = /[0-9０-９一二三四五六]択|選択肢|multiple[- ]choice|\b(options|choices) to (choose|pick) from\b/i;
 const DENIES = /ません|ない|なし|なく|ず(?:に|$)|\b(no|not|never|without|none)\b|n't/i;

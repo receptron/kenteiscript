@@ -6,6 +6,8 @@
 //
 // A full game makes questionsPerGame JEV calls and records one result, so point it at a
 // deployed site only if you are happy to add a test result to its chart.
+import { nextLevel, pickQuestion } from "../src/game.ts";
+
 const base = (process.argv[2] || "http://localhost:8787").replace(/\/$/, "");
 const quizQs = process.argv[3] ? `?quiz=${encodeURIComponent(process.argv[3])}` : "";
 
@@ -31,6 +33,8 @@ try {
   process.exit(1);
 }
 check(page.ok, "page is served", `HTTP ${page.status}`);
+const gameJs = await fetch(`${base}/game.js`);
+check(gameJs.ok && /export function pickQuestion/.test(await gameJs.text()), "the page's game rules are served", `HTTP ${gameJs.status}`);
 
 const quizRes = await fetch(`${base}/api/quiz${quizQs}`);
 const quiz = await quizRes.json();
@@ -55,13 +59,13 @@ const gameId = start.gameId;
 check(typeof gameId === "string", "game starts");
 check((await post("/api/finish", { gameId })).status === 400, "finishing an unfinished game is refused");
 
-// Play a full game: walk the levels like the page does, answering "わからない".
+// Play a full game: walk the levels with the page's rules (src/game.ts), answering "わからない".
 const rules = quiz.rules;
 let level = rules.startLevel;
 let total = 0;
 const used = new Set();
 for (let i = 0; i < rules.questionsPerGame; i++) {
-  const q = quiz.questions.find((x) => x.level === level && !used.has(x.id)) || quiz.questions.find((x) => !used.has(x.id));
+  const q = pickQuestion(quiz.questions, used, level, () => 0);
   used.add(q.id);
   const r = await post("/api/grade", { gameId, id: q.id, answer: i === 0 ? "" : "わからない" });
   if (r.status !== 200) { check(false, `grade ${q.id}`, JSON.stringify(r.body)); break; }
@@ -71,9 +75,7 @@ for (let i = 0; i < rules.questionsPerGame; i++) {
     const again = await post("/api/grade", { gameId, id: q.id, answer: "もう一度" });
     check(again.status === 400, "the same question cannot be graded twice");
   }
-  const up = r.body.type === "Choice" ? r.body.result === "correct" : r.body.result === 3;
-  const stay = r.body.type === "Choice" ? r.body.result === "close" : r.body.result === 2;
-  level = Math.min(rules.maxLevel, Math.max(rules.minLevel, level + (up ? 1 : stay ? 0 : -1)));
+  level = nextLevel(rules, level, r.body.credit);
 }
 const done = await post("/api/finish", { gameId });
 check(done.status === 200, "a finished game is recorded", `grade ${done.body.grade}, ${done.body.points} points`);

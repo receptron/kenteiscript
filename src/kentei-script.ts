@@ -93,6 +93,7 @@ export const Rules = z
       .strictObject({
         Choice: z
           .record(z.string(), z.number().min(0).max(1))
+          .refine((labels) => Object.keys(labels).length > 0, "needs at least one label")
           .describe(
             'Credit per Choice label, usually {"correct": 1, "close": 0.5, "wrong": 0}. Credit 1 moves the next question up a level, at least 0.5 keeps the level, less moves it down.',
           ),

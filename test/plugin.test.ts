@@ -258,6 +258,26 @@ test("the authoring loop keeps going: guide, schema, check and refusals ask for 
   assert.equal((await present(clone(SAMPLE_SCRIPT))).instructionsRequired, undefined);
 });
 
+test("every refusal before the quiz is shown says to keep going", async () => {
+  const ctx = withFiles({ "/project/broken.json": "{ bad" });
+  const refusals = [
+    await run(ctx, { action: "present", path: "nope.json" }),
+    await run(ctx, { action: "present", path: "broken.json" }),
+    await present("{ bad"),
+    await present({ meta: {} }),
+    await run({}, { action: "present", path: "q.json" }),
+    await run({}, { action: "show" }),
+  ];
+  for (const r of refusals) {
+    assert.equal(r.data, undefined);
+    assert.equal(r.instructionsRequired, true, r.message);
+    assert.match(r.instructions ?? "", /Do not reply to the user yet\.$/, r.message);
+  }
+  const noLabels = clone(SAMPLE_SCRIPT) as Record<string, any>;
+  noLabels.rules.credit.Choice = {};
+  assert.match((await present(noLabels)).message, /rules\.credit\.Choice: needs at least one label/);
+});
+
 test("an empty `path` or `script` beside the other is ignored rather than refused", async () => {
   assert.ok((await run({}, { action: "present", script: clone(SAMPLE_SCRIPT), path: "" })).data);
   assert.ok((await run(withFiles({ "/project/q.json": JSON.stringify(SAMPLE_SCRIPT) }), { action: "present", path: "q.json", script: null })).data);

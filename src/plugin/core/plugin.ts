@@ -22,8 +22,8 @@ const text = (message: string, instructions?: string): KenteiResult => (instruct
  * LLM must act on in this same turn. instructionsRequired asks a host that gives a model another turn
  * only for instructions (MulmoChat) to give it one, so the loop does not stop after reading the guide.
  */
-const step = (message: string, instructions: string): KenteiResult => ({ toolName: TOOL_NAME, message, instructions, instructionsRequired: true });
 const KEEP_GOING = "Do not reply to the user yet.";
+const step = (message: string, instructions: string): KenteiResult => ({ toolName: TOOL_NAME, message, instructions: `${instructions} ${KEEP_GOING}`, instructionsRequired: true });
 const errorText = (error: unknown) => (error instanceof Error ? error.message : String(error));
 
 // Remove what the LLM does not need from the generated schema: `propertyNames: { type: "string" }`
@@ -68,16 +68,16 @@ async function loadScript(context: KenteiContext, args: Record<string, unknown>)
   const given = (value: unknown) => value !== undefined && value !== null && value !== "";
   const hasScript = given(args.script);
   const hasPath = given(args.path);
-  if (hasScript && hasPath) return { error: step("Give `script` or `path`, not both.", `Call again with only one of them. ${KEEP_GOING}`) };
-  if (!hasScript && !hasPath) return { error: step("Nothing to check: give the KenteiScript as `script`, or `path` to a KenteiScript .json file.", `Call again with \`script\` or \`path\`. ${KEEP_GOING}`) };
+  if (hasScript && hasPath) return { error: step("Give `script` or `path`, not both.", `Call again with only one of them.`) };
+  if (!hasScript && !hasPath) return { error: step("Nothing to check: give the KenteiScript as `script`, or `path` to a KenteiScript .json file.", `Call again with \`script\` or \`path\`.`) };
 
   let data: unknown;
   let path: string | undefined;
   if (hasPath) {
-    if (typeof args.path !== "string" || !args.path.trim()) return { error: step("`path` must be a non-empty string: a KenteiScript .json file.", `Call again with a .json path, or the script as \`script\`. ${KEEP_GOING}`) };
+    if (typeof args.path !== "string" || !args.path.trim()) return { error: step("`path` must be a non-empty string: a KenteiScript .json file.", `Call again with a .json path, or the script as \`script\`.`) };
     path = args.path;
     const byPath = context.files?.byPath;
-    if (!byPath) return { error: step("This host cannot read files: pass the KenteiScript itself as `script` instead of `path`.", `Call again with the whole script as \`script\`. ${KEEP_GOING}`) };
+    if (!byPath) return { error: step("This host cannot read files: pass the KenteiScript itself as `script` instead of `path`.", `Call again with the whole script as \`script\`.`) };
     let source: string;
     try {
       source = await byPath.read(path);
@@ -116,8 +116,8 @@ const listIssues = (issues: AuthoringIssue[]) => `${issues.length} problem(s) to
 /** checkScript: the schema (already passed) plus the authoring rules: what present would refuse. */
 function checkResult(script: KenteiScript, path: string | undefined): KenteiResult {
   const issues = authoringIssues(script, { minPerLevel: 1 });
-  if (!issues.length) return step(`${summary(script, path)}\nNothing to fix.`, `Call present with the same ${path ? "path" : "script"} now to show it. ${KEEP_GOING}`);
-  return step(`${summary(script, path)}\n${listIssues(issues)}`, `Fix every problem${path ? ` in ${path}` : ""} and call present${path ? " with the same path" : " with the whole script"}. ${KEEP_GOING}`);
+  if (!issues.length) return step(`${summary(script, path)}\nNothing to fix.`, `Call present with the same ${path ? "path" : "script"} now to show it.`);
+  return step(`${summary(script, path)}\n${listIssues(issues)}`, `Fix every problem${path ? ` in ${path}` : ""} and call present${path ? " with the same path" : " with the whole script"}.`);
 }
 
 /**
@@ -132,7 +132,7 @@ function presentResult(script: KenteiScript, path: string | undefined): KenteiRe
   if (issues.some((i) => i.blocking)) {
     return step(
       `Nothing was shown. ${summary(script, path)}\n${listIssues(issues)}`,
-      `Fix every problem${path ? ` in ${path}` : ""} and call present again${path ? " with the same path" : " with the whole script"}. ${KEEP_GOING}`,
+      `Fix every problem${path ? ` in ${path}` : ""} and call present again${path ? " with the same path" : " with the whole script"}.`,
     );
   }
   const { meta, rules, questions } = script;
@@ -182,13 +182,13 @@ export async function executeKentei(context: KenteiContext, args: unknown, env: 
   const input = isRecord(args) ? args : {};
   const action = input.action;
   if (!isAction(action)) {
-    return step(`Unknown action ${JSON.stringify(action ?? null)}: use one of ${ACTIONS.join(", ")}.`, `Start with getGuide. ${KEEP_GOING}`);
+    return step(`Unknown action ${JSON.stringify(action ?? null)}: use one of ${ACTIONS.join(", ")}.`, `Start with getGuide.`);
   }
   switch (action) {
     case "getGuide":
-      return step(AUTHORING_GUIDE, `Now write the KenteiScript and call present with it, in this same turn. ${KEEP_GOING}`);
+      return step(AUTHORING_GUIDE, `Now write the KenteiScript and call present with it, in this same turn.`);
     case "getSchema":
-      return step(JSON.stringify(kenteiJsonSchema()), `Now write the KenteiScript and call present with it, in this same turn. ${KEEP_GOING}`);
+      return step(JSON.stringify(kenteiJsonSchema()), `Now write the KenteiScript and call present with it, in this same turn.`);
     case "checkScript":
     case "present": {
       const loaded = await loadScript(context, input);

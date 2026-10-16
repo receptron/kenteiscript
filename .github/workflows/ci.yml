@@ -18,10 +18,12 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v7
         with:
-          node-version: 22
+          persist-credentials: false
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 26
           cache: yarn
       - run: yarn install --frozen-lockfile
       - run: yarn typecheck
@@ -69,12 +71,14 @@ jobs:
       - name: Skip without an API key
         if: env.TYPESAFE_API_KEY == ''
         run: echo "::notice::No TYPESAFE_API_KEY secret; skipping the JEV grading test."
-      - uses: actions/checkout@v4
-        if: env.TYPESAFE_API_KEY != ''
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v7
         if: env.TYPESAFE_API_KEY != ''
         with:
-          node-version: 22
+          persist-credentials: false
+      - uses: actions/setup-node@v7
+        if: env.TYPESAFE_API_KEY != ''
+        with:
+          node-version: 26
           cache: yarn
       - name: Grade the sample answers of every quiz
         if: env.TYPESAFE_API_KEY != ''

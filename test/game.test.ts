@@ -12,7 +12,8 @@ const quizzes: [string, KenteiScript][] = readdirSync(join(root, "quizzes"))
   .filter((f) => f.endsWith(".json") && !f.endsWith(".tests.json"))
   .map((f) => [f, JSON.parse(readFileSync(join(root, "quizzes", f), "utf8")) as KenteiScript]);
 
-const rules = { minLevel: 1, maxLevel: 5, startLevel: 3, questionsPerGame: 10 };
+const usualCredit = { Choice: { correct: 1, close: 0.5, wrong: 0 }, Score: [0, 0, 0.5, 1] };
+const rules = { minLevel: 1, maxLevel: 5, startLevel: 3, questionsPerGame: 10, credit: usualCredit };
 
 test("levelStep: full credit up, at least half stays, less down", () => {
   assert.equal(game.levelStep(1), 1);
@@ -85,7 +86,7 @@ test("gradeFor, titleOf, maxPoints", () => {
   assert.equal(game.formatPoints(3), "3");
 });
 
-const levels = (...ls: number[]) => ls.map((level) => ({ level }));
+const levels = (...ls: number[]) => ls.map((level) => ({ level, written: false }));
 
 test("maxPoints replays an all-correct game with the script's own questions", () => {
   // Enough questions at every level: the level climbs 3, 4, 5, 5, …
@@ -96,9 +97,24 @@ test("maxPoints replays an all-correct game with the script's own questions", ()
   assert.equal(game.maxPoints(rules, levels(3, 4)), 7);
   // A tie (★2 and ★4 equally near ★3): both branches are tried. With two questions both orders
   // give 6; with one, the better branch (★4) is kept.
-  const tie = { questionsPerGame: 2, startLevel: 3, maxLevel: 3 };
+  const tie = { questionsPerGame: 2, startLevel: 3, minLevel: 1, maxLevel: 3, credit: usualCredit };
   assert.equal(game.maxPoints(tie, levels(2, 4)), 6);
   assert.equal(game.maxPoints({ ...tie, questionsPerGame: 1 }, levels(2, 4)), 4);
+});
+
+test("maxPoints uses the best credit rules.credit allows, and the level move that credit implies", () => {
+  // Choice tops out at 0.5, which keeps the level: three ★1 answers at 0.5 each, never climbing.
+  const half = { questionsPerGame: 3, startLevel: 1, minLevel: 1, maxLevel: 3, credit: { Choice: { correct: 0.5, wrong: 0 }, Score: [0, 1] } };
+  assert.equal(game.maxPoints(half, levels(1, 1, 1, 2, 2, 2, 3, 3, 3)), 1.5);
+  // Choice and Score can differ: a ★1 Choice at credit 1 climbs to ★2, where Score tops out at 0.5.
+  const mixed = { questionsPerGame: 2, startLevel: 1, minLevel: 1, maxLevel: 2, credit: { Choice: { correct: 1, wrong: 0 }, Score: [0, 0.5] } };
+  assert.equal(game.maxPoints(mixed, [{ level: 1, written: false }, { level: 2, written: true }]), 1 + 1);
+  // The page's public questions say `written`; a KenteiScript's say jev.type. Both work.
+  assert.equal(game.maxPoints(mixed, [{ level: 1, jev: { type: "Choice" } }, { level: 2, jev: { type: "Score" } }]), 2);
+  // A Score ladder whose top is 0.75 (stay): five ★2 questions at 1.5 each.
+  const ladder = { questionsPerGame: 5, startLevel: 2, minLevel: 1, maxLevel: 3, credit: { Choice: { correct: 1, wrong: 0 }, Score: [0, 0.25, 0.75] } };
+  const written = (...ls: number[]) => ls.map((level) => ({ level, written: true }));
+  assert.equal(game.maxPoints(ladder, written(1, 2, 2, 2, 2, 2, 3, 3)), 7.5);
 });
 
 // The result screen used to show 3 + 4 + 5 × (n − 2). For the real quizzes nothing changes but

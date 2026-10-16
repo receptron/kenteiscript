@@ -70,45 +70,73 @@ export function titleOf(grade: Pick<Grade, "title" | "titleChoices">, choice?: s
   return grade.titleChoices && choice && grade.titleChoices.includes(choice) ? choice : grade.title;
 }
 
+/** A question as maxPoints needs it: its level, and whether it is graded as Choice or Score. */
+export type ScoredQuestion = Pick<Question, "level"> & ({ jev: { type: GradeType } } | { written: boolean });
+
+const gradeTypeOf = (q: ScoredQuestion): GradeType => ("jev" in q ? q.jev.type : q.written ? "Score" : "Choice");
+
 /**
- * The most points a game of this script can reach. It replays a game in which every answer earns
- * full credit, so the game's level climbs one step per question from startLevel and stays at
- * maxLevel, with the script's actual questions and pickQuestion's rule: an unused question at that
- * level, else one from the nearest level that has one. Points come from the level of the question
- * actually asked, so a small script whose levels run out scores less than the levels alone suggest.
+ * The best credit an answer of this type can earn for each way it moves the level (up, stay,
+ * down), from rules.credit. Within one move a higher credit always earns more and leads to the
+ * same next level, so these are the only answers worth trying.
+ */
+function bestAnswers(rules: Pick<Rules, "credit">, type: GradeType): { step: number; credit: number }[] {
+  const credits = type === "Choice" ? Object.values(rules.credit.Choice) : rules.credit.Score;
+  const best = new Map<number, number>();
+  for (const c of credits) best.set(levelStep(c), Math.max(best.get(levelStep(c)) ?? 0, c));
+  return [...best].map(([step, credit]) => ({ step, credit }));
+}
+
+/**
+ * The most points a game of this script can reach. It replays games with the script's actual
+ * questions and pickQuestion's rule (an unused question at the game's level, else one from the
+ * nearest level that has one), and keeps the best total over every choice a game can take:
  *
- * Which question within a level is asked does not change the points. The only real choice is a
- * tie, when the nearest levels above and below are equally far; pickQuestion picks between them at
- * random, so this tries both and keeps the better total (memoized on what is left of each level).
- * The result is exact and deterministic: the best total some sequence of picks can produce.
+ *   - the answer: for each level move (up, stay, down), the best credit that move allows for the
+ *     question's type in rules.credit. Usually that is credit 1 every time, climbing one level per
+ *     question; a script whose best Choice or Score credit is below 1 cannot climb on those
+ *     questions, and earns at most level × that credit for them;
+ *   - the pick, where pickQuestion picks at random: a tie between the levels above and below, and
+ *     Choice vs Score within a level (which question of one level and type changes nothing).
+ *
+ * Points come from the level of the question actually asked, so a small script whose levels run
+ * out reaches less than its levels alone suggest. The search is exhaustive, memoized on (step,
+ * level, questions left per level and type), so the result is exact and deterministic.
  */
 export function maxPoints(
-  rules: Pick<Rules, "questionsPerGame" | "startLevel" | "maxLevel">,
-  questions: readonly Pick<Question, "level">[],
+  rules: Pick<Rules, "questionsPerGame" | "startLevel" | "minLevel" | "maxLevel" | "credit">,
+  questions: readonly ScoredQuestion[],
 ): number {
-  const levels = [...new Set(questions.map((q) => q.level))].sort((a, b) => a - b);
-  const counts = levels.map((l) => questions.filter((q) => q.level === l).length);
+  const kinds: { level: number; type: GradeType; answers: { step: number; credit: number }[]; left: number }[] = [];
+  for (const q of questions) {
+    const type = gradeTypeOf(q);
+    const kind = kinds.find((k) => k.level === q.level && k.type === type);
+    if (kind) kind.left++;
+    else kinds.push({ level: q.level, type, answers: bestAnswers(rules, type), left: 1 });
+  }
   const memo = new Map<string, number>();
-  const best = (step: number): number => {
+  const best = (step: number, level: number): number => {
     if (step >= rules.questionsPerGame) return 0;
-    const want = Math.min(rules.maxLevel, rules.startLevel + step);
-    const available = levels.filter((_, k) => counts[k]! > 0);
-    if (!available.length) return 0;
-    const key = `${step}:${counts.join(",")}`;
+    const distance = kinds.map((k) => (k.left > 0 ? Math.abs(k.level - level) : Infinity));
+    const nearest = Math.min(...distance);
+    if (nearest === Infinity) return 0;
+    const key = `${step}:${level}:${kinds.map((k) => k.left).join(",")}`;
     const known = memo.get(key);
     if (known !== undefined) return known;
-    const nearest = Math.min(...available.map((l) => Math.abs(l - want)));
     let top = 0;
-    levels.forEach((level, k) => {
-      if (!counts[k] || Math.abs(level - want) !== nearest) return;
-      counts[k]!--;
-      top = Math.max(top, level + best(step + 1));
-      counts[k]!++;
+    kinds.forEach((k, i) => {
+      if (distance[i] !== nearest) return;
+      k.left--;
+      for (const a of k.answers) {
+        const next = Math.min(rules.maxLevel, Math.max(rules.minLevel, level + a.step));
+        top = Math.max(top, pointsFor(k.level, a.credit) + best(step + 1, next));
+      }
+      k.left++;
     });
     memo.set(key, top);
     return top;
   };
-  return best(0);
+  return best(0, rules.startLevel);
 }
 
 /** Points as the player sees them: whole numbers as is, halves with one decimal. */

@@ -91,7 +91,10 @@
         </template>
         <p v-else class="r-title">おつかれさまでした。採点は AI がこのあと行います。</p>
         <p class="sent" data-testid="kentei-sent">{{ state.sent ? "結果をチャットに送りました。" : "" }}</p>
-        <button v-if="!state.sent" type="button" class="primary" @click="sendResults">結果をチャットに送る</button>
+        <p v-if="sendFailed && !state.sent" class="error" role="alert" data-testid="kentei-send-failed">
+          結果をチャットに送れませんでした。送り先を開いてから、もう一度「結果をチャットに送る」を押してください。
+        </p>
+        <button v-if="!state.sent" type="button" class="primary" data-testid="kentei-send" @click="sendResults">結果をチャットに送る</button>
         <ol class="review">
           <li v-for="(h, i) in state.history" :key="h.id">
             <div class="row">
@@ -135,7 +138,8 @@ import { resultsMessage } from "../core/results.ts";
 
 const props = defineProps<{
   selectedResult: ToolResult | null;
-  sendTextMessage: (text?: string) => void;
+  // Typed void by gui-chat-protocol, but MulmoTerminal returns false when no terminal took the text.
+  sendTextMessage: (text?: string) => void | boolean;
 }>();
 
 const emit = defineEmits<{
@@ -160,6 +164,8 @@ const state = ref<PlayState>({
 });
 const grading = ref(false);
 const error = ref("");
+/** The last attempt to send the results was not delivered (see sendResults). */
+const sendFailed = ref(false);
 let restoring = false;
 // Bumped whenever a different game takes over the View (another result, a restart), so a grading
 // response that arrives afterwards is recognized as stale and dropped.
@@ -180,6 +186,7 @@ function load(result: ToolResult): void {
   state.value = toPlayState(result.viewState, s) ?? initialState(s, mode);
   error.value = "";
   grading.value = false;
+  sendFailed.value = false;
   restoring = false;
 }
 
@@ -375,10 +382,15 @@ function next(): void {
   if (state.value.phase === "done") sendResults();
 }
 
+// Only an explicit false means the text was not delivered (MulmoTerminal, with no terminal to type
+// into); undefined is a void host such as MulmoClaude. Undelivered results stay unsent, so the
+// button stays and the player can send them again (graded or not).
+
 function sendResults(): void {
   if (!script.value || state.value.sent) return;
-  props.sendTextMessage(resultsMessage(script.value, state.value));
-  state.value = { ...state.value, sent: true };
+  const delivered = props.sendTextMessage(resultsMessage(script.value, state.value)) !== false;
+  sendFailed.value = !delivered;
+  if (delivered) state.value = { ...state.value, sent: true };
 }
 </script>
 

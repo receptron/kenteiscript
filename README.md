@@ -146,8 +146,9 @@ definition, with a comment on every field.
 - A full-credit answer (credit 1: `correct`, or the top Score level) moves the next question
   **up** a level; at least half credit (`close`, or level 2) keeps the level; anything less moves
   it **down**. When a level has no unused question left, the next one comes from the nearest level
-  that has one. The maximum shown with the result is the best an all-correct game can score with
-  the script's actual questions (`maxPoints` in `src/game.ts`), so it accounts for levels running out.
+  that has one. The maximum shown with the result is the best a game can score with the script's
+  actual questions and credits (`maxPoints` in `src/game.ts`), so it accounts for levels running
+  out and for a script whose best credit is below 1.
 - With `timeLimitPerQuestion`, each question has that many seconds. The view keeps the time, not
   the server: it shows the time left (and the limit on the start screen), and when time is up it
   submits what is in the answer box, as if the player had pressed 答える (an empty box is no
@@ -270,7 +271,9 @@ way as presentForm (`@mulmoclaude/form-plugin`), in `src/plugin/`:
   Each line carries the question id, the grade (a Choice label, or level/top for Score) and the
   probability JEV gave it, so the LLM can tell a confident grade from a borderline one. Ungraded
   answers are marked `not graded`, under a header that asks the LLM to grade them against the
-  criteria and `rules.grades`.
+  criteria and `rules.grades`. The View sends them once when the game ends; if the host reports that
+  nothing received them (MulmoTerminal's `sendTextMessage` returns `false` when no terminal can take
+  the text), it says so and keeps a button to send them again.
 
 ### Adding it to a host
 

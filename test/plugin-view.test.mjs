@@ -227,3 +227,53 @@ test("a Score grade is shown out of the question's own rubric", async () => {
   assert.match(v.sent[0], /— 1\/2 \(0\.80\)/);
   v.app.unmount();
 });
+
+test("sendTextMessage returning false (no terminal took it) leaves the results unsent, with a resend button", async () => {
+  // A host that refuses the first attempt, like MulmoTerminal with no terminal open.
+  let accept = false;
+  const tries = [];
+  const el = document.createElement("div");
+  document.body.appendChild(el);
+  const result = await executeKentei({}, structuredClone(SAMPLE_SCRIPT));
+  let current = { ...result, toolName: "presentKentei", uuid: "s1" };
+  const app = createApp({
+    render: () =>
+      h(plugin.viewComponent, {
+        selectedResult: current,
+        sendTextMessage: (text) => {
+          tries.push(text);
+          return accept ? undefined : false;
+        },
+        onUpdateResult: (r) => (current = r),
+      }),
+  });
+  app.mount(el);
+  await flush();
+  const $ = (id) => el.querySelector(`[data-testid="${id}"]`);
+  const click = async (id) => {
+    $(id).dispatchEvent(new dom.window.MouseEvent("click", { bubbles: true }));
+    await flush();
+  };
+  await click("kentei-start-button");
+  for (let i = 0; i < 4; i++) {
+    await click("kentei-submit");
+    await click("kentei-next");
+  }
+  assert.equal(tries.length, 1, "sent automatically at the end");
+  assert.ok($("kentei-result"));
+  assert.equal($("kentei-sent").textContent, "", "no success text");
+  assert.ok($("kentei-send-failed"), "the failure is shown");
+  assert.ok($("kentei-send"), "the resend button stays");
+  assert.equal(current.viewState.sent, false, "sent: true is not saved");
+
+  accept = true; // a void host (undefined) counts as delivered
+  await click("kentei-send");
+  assert.equal(tries.length, 2);
+  assert.equal(tries[1], tries[0], "the same ungraded answers are sent again");
+  assert.match(tries[1], /answers to grade/);
+  assert.match($("kentei-sent").textContent, /送りました/);
+  assert.equal($("kentei-send"), null);
+  assert.equal($("kentei-send-failed"), null);
+  assert.equal(current.viewState.sent, true);
+  app.unmount();
+});

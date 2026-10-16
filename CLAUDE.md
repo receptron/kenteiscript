@@ -43,8 +43,9 @@ changes with those uses in mind, and do not claim them as supported until they a
   nothing under `src/plugin/` is imported from `src/index.ts`, `src/grading.ts` or `src/game.ts`.
 - Package manager: **npm** (package-lock.json).
 - The npm package name is **`kenteiscript`** (npm names must be lowercase, so not `KenteiScript`),
-  kept for a possible future publish. `"private": true` stays until that is decided, so nothing
-  is published by accident. The Worker and D1 are still named `mulmo-kentei` in `wrangler.jsonc`:
+  published to npm. The tarball is `files: ["dist"]` plus README, LICENSE and package.json;
+  `prepublishOnly` builds the plugin and runs its tests, so `npm publish` always ships a fresh,
+  tested `dist/`. Bump `version` for every publish. The Worker and D1 are still named `mulmo-kentei` in `wrangler.jsonc`:
   those are deployment names, and renaming them means a new site URL and a new database.
 - Player-facing text is Japanese. Code, comments, commit messages and docs are English.
 

@@ -60,6 +60,13 @@ export const Rules = z.strictObject({
   }),
   /** Highest first. A game's points are the sum of level × credit. */
   grades: z.array(Grade).min(1),
+  /**
+   * Seconds for each question, optional; no limit when absent. There is no limit for the whole
+   * game. The runtime's view keeps it: it counts down while a question is shown, pauses while the
+   * answer is graded and the feedback is shown, and at 0 submits what is in the answer box (empty
+   * means no answer). The server does not enforce it.
+   */
+  timeLimitPerQuestion: z.int().positive().optional(),
   // Notes for authors; not read by the app.
   next: z.record(z.string(), z.string()).optional(),
   points: z.string().optional(),

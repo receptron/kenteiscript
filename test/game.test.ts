@@ -115,9 +115,21 @@ test("maxPoints uses the best credit rules.credit allows, and the level move tha
   assert.equal(game.maxPoints(half, levels(1, 1, 1, 2, 2, 2, 3, 3, 3)), 1.5);
   // Choice and Score can differ: a ★1 Choice at credit 1 climbs to ★2, where Score tops out at 0.5.
   const mixed = { questionsPerGame: 2, startLevel: 1, minLevel: 1, maxLevel: 2, credit: { Choice: { correct: 1, wrong: 0 }, Score: [0, 0.5] } };
-  assert.equal(game.maxPoints(mixed, [{ level: 1, written: false }, { level: 2, written: true }]), 1 + 1);
+  assert.equal(
+    game.maxPoints(mixed, [
+      { level: 1, written: false },
+      { level: 2, written: true },
+    ]),
+    1 + 1,
+  );
   // The page's public questions say `written`; a KenteiScript's say jev.type. Both work.
-  assert.equal(game.maxPoints(mixed, [{ level: 1, jev: { type: "Choice" } }, { level: 2, jev: { type: "Score" } }]), 2);
+  assert.equal(
+    game.maxPoints(mixed, [
+      { level: 1, jev: { type: "Choice" } },
+      { level: 2, jev: { type: "Score" } },
+    ]),
+    2,
+  );
   // A Score ladder whose top is 0.75 (stay): five ★2 questions at 1.5 each.
   const ladder = { questionsPerGame: 5, startLevel: 2, minLevel: 1, maxLevel: 3, credit: { Choice: { correct: 1, wrong: 0 }, Score: [0, 0.25, 0.75] } };
   const written = (...ls: number[]) => ls.map((level) => ({ level, written: true }));

@@ -34,7 +34,9 @@ for (const { c, r } of results) {
   const ok = r.result === c.expect;
   passed += ok ? 1 : 0;
   tokens += r.inputTokens ?? 0;
-  const probs = Object.entries(r.probabilities).map(([k, v]) => `${k}:${v.toFixed(2)}`).join(" ");
+  const probs = Object.entries(r.probabilities)
+    .map(([k, v]) => `${k}:${v.toFixed(2)}`)
+    .join(" ");
   console.log(`${ok ? "ok  " : "FAIL"} ${c.id} expect=${String(c.expect).padEnd(7)} got=${String(r.result).padEnd(7)} [${probs}]  ${c.answer.slice(0, 30)}`);
 }
 console.log(`\n${passed}/${cases.length} as expected · ${tokens} input tokens · ${((Date.now() - started) / 1000).toFixed(1)}s`);

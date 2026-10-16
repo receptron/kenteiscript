@@ -6,18 +6,19 @@ format by example, how it works) live in **README.md** — read it for anything 
 ## What this repo is
 
 The subject is **KenteiScript**, a small JSON language for quizzes and tests that an LLM writes
-(see the next section), built on the *DSL as Harness* philosophy. The repo holds the format
+(see the next section), built on the _DSL as Harness_ philosophy. The repo holds the format
 (a Zod schema), the grading code, sample KenteiScripts, and **MulmoKentei**, a sample service that
 runs them. MulmoKentei is an example of using KenteiScript, not the product: describe things
 script-first, and keep the format and the grading free of anything only the service needs.
 
 It is meant for more than 検定: classroom comprehension checks, end-of-term exams, hiring tests.
 Today the language only describes adaptive games; exams still need a fixed mode, named takers,
-per-person results and review of uncertain grades (README, *Where it fits*); a per-question time
+per-person results and review of uncertain grades (README, _Where it fits_); a per-question time
 limit (`rules.timeLimitPerQuestion`) is supported, kept by the page, not the server. Design
 changes with those uses in mind, and do not claim them as supported until they are.
 
 ## Stack
+
 - MulmoKentei is a Cloudflare Worker (`src/index.ts`) + D1, serving one static page
   (`public/index.html`, plain JS, no build step). Answers are graded by TypeSafe JEV, a decision
   model (`src/grading.ts`).
@@ -29,7 +30,7 @@ changes with those uses in mind, and do not claim them as supported until they a
   `src/game.ts` (types stripped) in the wrangler build step and `yarn typecheck`; it is
   git-ignored. Change the rules in `src/game.ts` only, keep it erasable TypeScript (no enums), and
   never edit `public/game.js`.
-- The **manageKenteiScript chat plugin** lives in `src/plugin/` (README, *In chat*): `core/`
+- The **manageKenteiScript chat plugin** lives in `src/plugin/` (README, _In chat_): `core/`
   (host-neutral: tool definition, execute, game state, results message), `vue/` (View, Preview),
   `server.ts` (the executor in the legacy `(context, args)` shape, not a `definePlugin` factory,
   because hosts give a context, and so `files.byPath` for `path`, only to that shape; it takes the
@@ -93,6 +94,7 @@ deploy, so a bad file fails the build, not a game. Consequences:
   the Worker applies to the bundled quizzes) is Choice correct/close/wrong, Score [0, 0, 0.5, 1].
 
 ## Run after changes
+
 - `yarn format` — Prettier over the whole repo (`.prettierrc.json`); CI runs `yarn format:check`.
 - `yarn typecheck` — regenerates `src/quizzes.gen.ts`, `public/game.js` and the Worker types,
   then runs `tsc` (Worker, scripts, tests) and `vue-tsc -p tsconfig.plugin.json` (the plugin,
@@ -168,7 +170,7 @@ Other things that bite:
 
 Questions live in the quiz's KenteiScript, `quizzes/<quiz>.json`; sample answers for testing in
 `quizzes/<quiz>.tests.json`. Every field is documented in `src/kentei-script.ts`; README.md
-(*Quizzes → Format*) shows one by example. The workflow:
+(_Quizzes → Format_) shows one by example. The workflow:
 
 1. Add the question to `questions`, with an `id` of `L<level>-<nn>`, unique in the file (the
    schema refuses duplicates).
@@ -241,7 +243,7 @@ fields: a new field on a question is private unless it is added to `publicQuiz()
 
 The chat plugin is different by design: its View receives the whole script, criteria included,
 because the LLM wrote it in the user's own chat and the View has to send it to the server for
-grading. It still never *displays* criteria or an explanation before the answer is graded (the
+grading. It still never _displays_ criteria or an explanation before the answer is graded (the
 View test checks this). The JEV key stays on the host's server in both runtimes.
 
 ## Secrets and pushing

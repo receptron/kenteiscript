@@ -6,7 +6,9 @@ import { parseKenteiScript } from "../src/kentei-script.ts";
 
 const root = new URL("..", import.meta.url).pathname;
 const dir = join(root, "quizzes");
-const files = readdirSync(dir).filter((f) => f.endsWith(".json") && !f.endsWith(".tests.json")).sort();
+const files = readdirSync(dir)
+  .filter((f) => f.endsWith(".json") && !f.endsWith(".tests.json"))
+  .sort();
 if (!files.length) throw new Error("No quizzes found in quizzes/");
 
 // Every KenteiScript is validated with the Zod schema; one bad file fails the build with a list

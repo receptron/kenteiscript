@@ -73,14 +73,19 @@ export function authoringIssues(script: KenteiScript, options: { minPerLevel: nu
   for (const q of questions) {
     const type = q.jev.type;
     if (!q.jev.instructions.includes(INJECTION_GUARD[type]) && !q.jev.instructions.includes(INJECTION_GUARD_EN[type])) {
-      issues.push({ where: q.id, blocking: true, message: `instructions must end with the injection guard: 「${INJECTION_GUARD[type]}。」 (or in English: "${INJECTION_GUARD_EN[type]}.")` });
+      issues.push({
+        where: q.id,
+        blocking: true,
+        message: `instructions must end with the injection guard: 「${INJECTION_GUARD[type]}。」 (or in English: "${INJECTION_GUARD_EN[type]}.")`,
+      });
     }
     if (asksToPick(q.question)) {
       issues.push({
         where: q.id,
         blocking: true,
         overridable: true,
-        message: "the question asks the player to pick from options, but no options are shown: the player types the answer. Ask for the answer itself (「〜は何？」, \"What is ...?\")",
+        message:
+          'the question asks the player to pick from options, but no options are shown: the player types the answer. Ask for the answer itself (「〜は何？」, "What is ...?")',
       });
     }
   }
@@ -91,7 +96,11 @@ export function authoringIssues(script: KenteiScript, options: { minPerLevel: nu
   }
   for (const line of [meta.intro, ...meta.rules]) {
     if (promisesOptions(line)) {
-      issues.push({ where: "meta", blocking: false, message: `「${line}」: every answer is typed in the player's own words; do not promise options or mention Choice / Score questions` });
+      issues.push({
+        where: "meta",
+        blocking: false,
+        message: `「${line}」: every answer is typed in the player's own words; do not promise options or mention Choice / Score questions`,
+      });
     }
   }
   const perLevel = new Map<number, number>();

@@ -35,10 +35,18 @@
         </div>
         <div class="q-head">
           <span>第 {{ questionNumber }} 問 / {{ script.rules.questionsPerGame }}</span>
-          <span v-if="state.phase === 'question' && timeLeft !== null" class="timer" :class="{ warn: timeLeft <= WARN_SECONDS }" role="timer" data-testid="kentei-timer">
+          <span
+            v-if="state.phase === 'question' && timeLeft !== null"
+            class="timer"
+            :class="{ warn: timeLeft <= WARN_SECONDS }"
+            role="timer"
+            data-testid="kentei-timer"
+          >
             {{ timeLeft > 0 ? `残り ${timeLeft} 秒` : "時間切れ" }}
           </span>
-          <span class="stars">{{ "★".repeat(current.level) }}<span class="off">{{ "★".repeat(Math.max(0, script.rules.maxLevel - current.level)) }}</span></span>
+          <span class="stars"
+            >{{ "★".repeat(current.level) }}<span class="off">{{ "★".repeat(Math.max(0, script.rules.maxLevel - current.level)) }}</span></span
+          >
         </div>
         <p class="q-text" data-testid="kentei-question-text">{{ current.question }}</p>
         <p v-if="note" class="note">{{ note }}</p>
@@ -86,7 +94,9 @@
         <p v-if="sendFailed && !state.sent" class="error" role="alert" data-testid="kentei-send-failed">
           結果をチャットに送れませんでした。送り先を開いてから、もう一度「結果をチャットに送る」を押してください。
         </p>
-        <button v-if="!state.sent" type="button" class="primary" data-testid="kentei-send" :disabled="sending" @click="sendResults">結果をチャットに送る</button>
+        <button v-if="!state.sent" type="button" class="primary" data-testid="kentei-send" :disabled="sending" @click="sendResults">
+          結果をチャットに送る
+        </button>
         <ol class="review">
           <li v-for="(h, i) in state.history" :key="h.id">
             <div class="row">
@@ -120,17 +130,7 @@ import type { KenteiScript, Question } from "../../kentei-script.ts";
 import { formatPoints, levelStep } from "../../game.ts";
 import type { AnswerGrade, KenteiData } from "../core/types.ts";
 import { TOOL_NAME } from "../core/definition.ts";
-import {
-  MAX_ANSWER_CHARS,
-  advance,
-  initialState,
-  isLastAnswer,
-  normalizeAnswer,
-  questionById,
-  recordAnswer,
-  summary,
-  type PlayState,
-} from "../core/play.ts";
+import { MAX_ANSWER_CHARS, advance, initialState, isLastAnswer, normalizeAnswer, questionById, recordAnswer, summary, type PlayState } from "../core/play.ts";
 import { toPlayState } from "../core/viewState.ts";
 import { resultsMessage } from "../core/results.ts";
 
@@ -442,7 +442,11 @@ async function sendResults(): Promise<void> {
   overflow-y: auto;
   background: var(--bg);
   color: var(--ink);
-  font: 15px/1.75 "Hiragino Sans", "Noto Sans JP", system-ui, sans-serif;
+  font:
+    15px/1.75 "Hiragino Sans",
+    "Noto Sans JP",
+    system-ui,
+    sans-serif;
 }
 .kentei *,
 .kentei *::before,
@@ -471,12 +475,18 @@ header {
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  font: 800 14px/1.05 "Hiragino Mincho ProN", "Yu Mincho", serif;
+  font:
+    800 14px/1.05 "Hiragino Mincho ProN",
+    "Yu Mincho",
+    serif;
   letter-spacing: 0.05em;
   transform: rotate(-4deg);
 }
 h1 {
-  font: 800 24px/1.25 "Hiragino Mincho ProN", "Yu Mincho", serif;
+  font:
+    800 24px/1.25 "Hiragino Mincho ProN",
+    "Yu Mincho",
+    serif;
   margin: 0;
   letter-spacing: 0.06em;
 }
@@ -489,11 +499,16 @@ header p {
   background: var(--paper);
   border: 1px solid var(--line);
   border-radius: 14px;
-  box-shadow: 0 1px 2px rgba(60, 40, 20, 0.08), 0 8px 24px rgba(60, 40, 20, 0.08);
+  box-shadow:
+    0 1px 2px rgba(60, 40, 20, 0.08),
+    0 8px 24px rgba(60, 40, 20, 0.08);
   padding: 24px;
 }
 h2 {
-  font: 700 20px/1.4 "Hiragino Mincho ProN", "Yu Mincho", serif;
+  font:
+    700 20px/1.4 "Hiragino Mincho ProN",
+    "Yu Mincho",
+    serif;
   margin: 0 0 10px;
 }
 .lead,
@@ -587,7 +602,10 @@ button:disabled {
   color: var(--line);
 }
 .q-text {
-  font: 700 18px/1.6 "Hiragino Mincho ProN", "Yu Mincho", serif;
+  font:
+    700 18px/1.6 "Hiragino Mincho ProN",
+    "Yu Mincho",
+    serif;
   margin: 8px 0 12px;
   white-space: pre-wrap;
 }
@@ -662,13 +680,19 @@ textarea {
 .r-grade {
   margin: 0;
   text-align: center;
-  font: 800 56px/1.1 "Hiragino Mincho ProN", "Yu Mincho", serif;
+  font:
+    800 56px/1.1 "Hiragino Mincho ProN",
+    "Yu Mincho",
+    serif;
   color: var(--accent);
 }
 .r-title {
   margin: 4px 0;
   text-align: center;
-  font: 700 18px/1.5 "Hiragino Mincho ProN", "Yu Mincho", serif;
+  font:
+    700 18px/1.5 "Hiragino Mincho ProN",
+    "Yu Mincho",
+    serif;
 }
 .r-score {
   margin: 0;

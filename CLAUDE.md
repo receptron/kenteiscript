@@ -5,7 +5,8 @@ format by example, how it works) live in **README.md** — read it for anything 
 
 ## What this repo is
 
-The subject is **KenteiScript**, the quiz format (see the next section). The repo holds the format
+The subject is **KenteiScript**, a small JSON language for adaptive quizzes that an LLM writes
+(see the next section), built on the *DSL as Harness* philosophy. The repo holds the format
 (a Zod schema), the grading code, sample KenteiScripts, and **MulmoKentei**, a sample service that
 runs them. MulmoKentei is an example of using KenteiScript, not the product: describe things
 script-first, and keep the format and the grading free of anything only the service needs.

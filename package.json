@@ -1,7 +1,7 @@
 {
   "name": "kenteiscript",
   "version": "0.1.0",
-  "description": "KenteiScript: a JSON format for free-answer quizzes graded by a decision model (TypeSafe JEV), with MulmoKentei, a sample service on Cloudflare Workers + D1",
+  "description": "KenteiScript: a small JSON language for adaptive quizzes, written by an LLM, with answers in the player's own words graded by a decision model (TypeSafe JEV). Includes MulmoKentei, a sample runtime on Cloudflare Workers + D1",
   "private": true,
   "type": "module",
   "license": "MIT",

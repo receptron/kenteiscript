@@ -45,6 +45,24 @@ export function kenteiJsonSchema(): Record<string, unknown> {
   return clean(z.toJSONSchema(KenteiScript, { io: "input" })) as Record<string, unknown>;
 }
 
+/**
+ * The one slip LLMs make often enough to forgive: `explanation` written inside `jev` rather than
+ * beside it. It is taken out of `jev` and used when the question's own is missing or blank (else
+ * the question's own wins). Anything else stays for the schema to report. Returns a copy.
+ */
+function repairExplanations(data: unknown): unknown {
+  if (!isRecord(data) || !Array.isArray(data.questions)) return data;
+  return {
+    ...data,
+    questions: data.questions.map((q) => {
+      if (!isRecord(q) || !isRecord(q.jev) || typeof q.jev.explanation !== "string") return q;
+      const { explanation: nested, ...jev } = q.jev;
+      const hasOwn = typeof q.explanation === "string" && q.explanation.trim() !== "";
+      return { ...q, jev, explanation: hasOwn ? q.explanation : nested };
+    }),
+  };
+}
+
 /** "line 3, column 7" for a JSON.parse error, when the engine reports a position. */
 function jsonErrorWhere(source: string, error: unknown): string {
   const message = errorText(error);
@@ -101,10 +119,13 @@ async function loadScript(context: KenteiContext, args: Record<string, unknown>)
     data = args.script;
   }
   try {
-    const script = parseKenteiScript(data, path ?? "The script");
+    const script = parseKenteiScript(repairExplanations(data), path ?? "The script");
     return path ? { script, path } : { script };
   } catch (error) {
-    return { error: step(errorText(error), `Fix every problem listed above${path ? ` in ${path}` : " in the script"} and call again${path ? " with the same path" : ""}.`) };
+    // A fix resent inline has dropped questions that had nothing wrong with them: say to keep them.
+    const n = isRecord(data) && Array.isArray(data.questions) ? data.questions.length : 0;
+    const whole = n ? ` with the whole script: all ${n} questions, changing only what is listed` : " with the whole script";
+    return { error: step(errorText(error), `Fix every problem listed above${path ? ` in ${path}` : " in the script"} and call again${path ? " with the same path" : whole}.`) };
   }
 }
 
@@ -117,7 +138,7 @@ const listIssues = (issues: AuthoringIssue[]) => `${issues.length} problem(s) to
 function checkResult(script: KenteiScript, path: string | undefined): KenteiResult {
   const issues = authoringIssues(script, { minPerLevel: 1 });
   if (!issues.length) return step(`${summary(script, path)}\nNothing to fix.`, `Call present with the same ${path ? "path" : "script"} now to show it.`);
-  return step(`${summary(script, path)}\n${listIssues(issues)}`, `Fix every problem${path ? ` in ${path}` : ""} and call present${path ? " with the same path" : " with the whole script"}.`);
+  return step(`${summary(script, path)}\n${listIssues(issues)}`, `Fix every problem${path ? ` in ${path}` : ""} and call present${path ? " with the same path" : ` with the whole script: all ${script.questions.length} questions, changing only what is listed`}.`);
 }
 
 /**
@@ -136,7 +157,7 @@ function presentResult(script: KenteiScript, path: string | undefined, ignoreWor
       : "";
     return step(
       `Nothing was shown. ${summary(script, path)}\n${listIssues(issues)}`,
-      `Fix every problem${path ? ` in ${path}` : ""} and call present again${path ? " with the same path" : " with the whole script"}.${override}`,
+      `Fix every problem${path ? ` in ${path}` : ""} and call present again${path ? " with the same path" : ` with the whole script: all ${script.questions.length} questions, changing only what is listed`}.${override}`,
     );
   }
   const { meta, rules, questions } = script;

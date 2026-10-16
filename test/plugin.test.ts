@@ -278,6 +278,39 @@ test("every refusal before the quiz is shown says to keep going", async () => {
   assert.match((await present(noLabels)).message, /rules\.credit\.Choice: needs at least one label/);
 });
 
+test("explanation: inside jev is moved beside it; a missing one is reported, not refused", async () => {
+  const slipped = clone(SAMPLE_SCRIPT) as Record<string, any>;
+  slipped.questions[3].jev.explanation = slipped.questions[3].explanation;
+  delete slipped.questions[3].explanation;
+  const moved = await present(slipped);
+  assert.ok(moved.data, moved.message);
+  assert.equal(moved.data.script.questions[3]!.explanation, SAMPLE_SCRIPT.questions[3]!.explanation);
+  assert.equal("explanation" in moved.data.script.questions[3]!.jev, false);
+  assert.ok("explanation" in slipped.questions[3].jev, "the caller's object is not changed");
+  const blank = clone(slipped);
+  blank.questions[3].explanation = "  ";
+  assert.equal((await present(blank)).data?.script.questions[3]!.explanation, SAMPLE_SCRIPT.questions[3]!.explanation);
+  const both = clone(SAMPLE_SCRIPT) as Record<string, any>;
+  both.questions[3].jev.explanation = "a duplicate";
+  const kept = await present(both);
+  assert.equal(kept.data?.script.questions[3]!.explanation, SAMPLE_SCRIPT.questions[3]!.explanation, "the question's own wins");
+
+  const missing = clone(SAMPLE_SCRIPT) as Record<string, any>;
+  delete missing.questions[3].explanation;
+  const shown = await present(missing);
+  assert.ok(shown.data, shown.message);
+  assert.match(shown.message, /Not fixed, shown anyway: L3-01: no explanation/);
+  assert.match((await check({ script: missing })).message, /- L3-01: no explanation/);
+});
+
+test("schema errors name the question by id as well as by index", async () => {
+  const bad = clone(SAMPLE_SCRIPT) as Record<string, any>;
+  bad.questions[2].jev.extra = 1;
+  const r = await present(bad);
+  assert.match(r.message, /questions\.2 \(L2-02\)\.jev: Unrecognized key: "extra"/);
+  assert.match(r.instructions ?? "", /call again with the whole script: all 4 questions, changing only what is listed/);
+});
+
 test("an empty `path` or `script` beside the other is ignored rather than refused", async () => {
   assert.ok((await run({}, { action: "present", script: clone(SAMPLE_SCRIPT), path: "" })).data);
   assert.ok((await run(withFiles({ "/project/q.json": JSON.stringify(SAMPLE_SCRIPT) }), { action: "present", path: "q.json", script: null })).data);

@@ -5,9 +5,13 @@ import { withDefaultCredit } from "./game.ts";
 import type { KenteiScript } from "./kentei-script.ts";
 import { quizzes as written } from "./quizzes.gen.ts"; // every KenteiScript in quizzes/, bundled by scripts/gen-quizzes.mjs
 
-// As the schema reads them: gen-quizzes validated each one, and rules.credit may be left out.
+// As the schema reads them: gen-quizzes validated each one, and the schema's two defaults are
+// filled in here, without Zod: rules.credit and each question's explanation ("").
 const quizzes: Record<string, KenteiScript> = Object.fromEntries(
-  Object.entries(written).map(([id, quiz]) => [id, withDefaultCredit(quiz) as KenteiScript]),
+  Object.entries(written).map(([id, quiz]) => {
+    const filled = withDefaultCredit(quiz);
+    return [id, { ...filled, questions: filled.questions.map((q) => ({ ...q, explanation: q.explanation ?? "" })) } as KenteiScript];
+  }),
 );
 
 interface Env {

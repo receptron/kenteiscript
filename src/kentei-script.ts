@@ -66,7 +66,11 @@ export const Question = z
     jev: z
       .discriminatedUnion("type", [ChoiceJev, ScoreJev])
       .describe("How the answer is graded. The grader sees only the question, the answer, instructions and criteria."),
-    explanation: text.describe("The answer and why, shown to the player after the answer is graded, never before."),
+    explanation: z
+      .string()
+      .trim()
+      .default("")
+      .describe("The answer and why, shown to the player after the answer is graded, never before. Beside \"jev\", not inside it."),
   })
   .describe("One question.");
 
@@ -202,6 +206,16 @@ export type KenteiTests = z.infer<typeof KenteiTests>;
 export function parseKenteiScript(data: unknown, name: string): KenteiScript {
   const result = KenteiScript.safeParse(data);
   if (result.success) return result.data;
-  const lines = result.error.issues.map((i) => `  ${i.path.join(".") || "(root)"}: ${i.message}`);
+  // "questions.4 (L3-02).explanation": the id says which question, whatever the LLM reordered.
+  const questions = typeof data === "object" && data !== null && Array.isArray((data as { questions?: unknown }).questions) ? (data as { questions: unknown[] }).questions : [];
+  const where = (path: PropertyKey[]) =>
+    path
+      .map((p, i) => {
+        const q = path[i - 1] === "questions" && typeof p === "number" ? questions[p] : undefined;
+        const id = typeof q === "object" && q !== null && typeof (q as { id?: unknown }).id === "string" ? (q as { id: string }).id : undefined;
+        return id ? `${String(p)} (${id})` : String(p);
+      })
+      .join(".");
+  const lines = result.error.issues.map((i) => `  ${where(i.path) || "(root)"}: ${i.message}`);
   throw new Error(`${name} is not a valid KenteiScript:\n${lines.join("\n")}`);
 }

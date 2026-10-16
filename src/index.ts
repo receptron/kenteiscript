@@ -1,8 +1,14 @@
 // MulmoKentei Worker: serves the quiz API, grades answers with JEV, and keeps
 // games and results in D1. The page is served from public/ as static assets.
 import { gradeAnswer, gradeFor, publicQuiz } from "./grading.ts";
+import { withDefaultCredit } from "./game.ts";
 import type { KenteiScript } from "./kentei-script.ts";
-import { quizzes } from "./quizzes.gen.ts"; // every KenteiScript in quizzes/, bundled by scripts/gen-quizzes.mjs
+import { quizzes as written } from "./quizzes.gen.ts"; // every KenteiScript in quizzes/, bundled by scripts/gen-quizzes.mjs
+
+// As the schema reads them: gen-quizzes validated each one, and rules.credit may be left out.
+const quizzes: Record<string, KenteiScript> = Object.fromEntries(
+  Object.entries(written).map(([id, quiz]) => [id, withDefaultCredit(quiz) as KenteiScript]),
+);
 
 interface Env {
   DB: D1Database;
@@ -67,7 +73,7 @@ async function grade(env: Env, body: Record<string, unknown>) {
   if (!q) return json(400, { error: "unknown question" });
   if (game.done || game.n >= quiz.rules.questionsPerGame) return json(400, { error: "この問題はもう採点済みです" });
 
-  const answer = String(body.answer ?? "").trim().slice(0, MAX_ANSWER_CHARS) || "（無回答）";
+  const answer = String(body.answer ?? "").trim().slice(0, MAX_ANSWER_CHARS);
   let result;
   try {
     result = await gradeAnswer(quiz, q, answer, { apiKey: env.TYPESAFE_API_KEY, model: env.JEV_MODEL, url: env.JEV_URL });

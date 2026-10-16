@@ -2,7 +2,7 @@ import type { FileOps, ToolContext, ToolPluginCore, ToolResult } from "gui-chat-
 import { z } from "zod";
 import { KenteiScript, parseKenteiScript } from "../../kentei-script.ts";
 import { maxPoints } from "../../game.ts";
-import { AUTHORING_GUIDE, authoringIssues } from "../../authoring.ts";
+import { AUTHORING_GUIDE, authoringIssues, type AuthoringIssue } from "../../authoring.ts";
 import { ACTIONS, TOOL_DEFINITION, TOOL_NAME, type Action } from "./definition.ts";
 import type { KenteiData, KenteiJson } from "./types.ts";
 import { envFromProcess, hasJevKey, MISSING_KEY_MESSAGE, type GradeEnv } from "./env.ts";
@@ -17,6 +17,13 @@ export interface KenteiContext extends ToolContext {
 
 const isRecord = (value: unknown): value is Record<string, unknown> => typeof value === "object" && value !== null && !Array.isArray(value);
 const text = (message: string, instructions?: string): KenteiResult => (instructions ? { toolName: TOOL_NAME, message, instructions } : { toolName: TOOL_NAME, message });
+/**
+ * A step of the authoring loop (getGuide → write → present, fixing what it lists): instructions the
+ * LLM must act on in this same turn. instructionsRequired asks a host that gives a model another turn
+ * only for instructions (MulmoChat) to give it one, so the loop does not stop after reading the guide.
+ */
+const KEEP_GOING = "Do not reply to the user yet.";
+const step = (message: string, instructions: string): KenteiResult => ({ toolName: TOOL_NAME, message, instructions: `${instructions} ${KEEP_GOING}`, instructionsRequired: true });
 const errorText = (error: unknown) => (error instanceof Error ? error.message : String(error));
 
 // Remove what the LLM does not need from the generated schema: `propertyNames: { type: "string" }`
@@ -57,36 +64,38 @@ type Loaded = { script: KenteiScript; path?: string } | { error: KenteiResult };
  * what to fix (the file, when it used `path`).
  */
 async function loadScript(context: KenteiContext, args: Record<string, unknown>): Promise<Loaded> {
-  const hasScript = args.script !== undefined;
-  const hasPath = args.path !== undefined;
-  if (hasScript && hasPath) return { error: text("Give `script` or `path`, not both.", "Call again with only one of them.") };
-  if (!hasScript && !hasPath) return { error: text("Nothing to check: give the KenteiScript as `script`, or `path` to a KenteiScript .json file.", "Call again with `script` or `path`.") };
+  // An empty value is a parameter the LLM filled in without meaning to use ("path": "" beside a script).
+  const given = (value: unknown) => value !== undefined && value !== null && value !== "";
+  const hasScript = given(args.script);
+  const hasPath = given(args.path);
+  if (hasScript && hasPath) return { error: step("Give `script` or `path`, not both.", `Call again with only one of them.`) };
+  if (!hasScript && !hasPath) return { error: step("Nothing to check: give the KenteiScript as `script`, or `path` to a KenteiScript .json file.", `Call again with \`script\` or \`path\`.`) };
 
   let data: unknown;
   let path: string | undefined;
   if (hasPath) {
-    if (typeof args.path !== "string" || !args.path.trim()) return { error: text("`path` must be a non-empty string: a KenteiScript .json file.") };
+    if (typeof args.path !== "string" || !args.path.trim()) return { error: step("`path` must be a non-empty string: a KenteiScript .json file.", `Call again with a .json path, or the script as \`script\`.`) };
     path = args.path;
     const byPath = context.files?.byPath;
-    if (!byPath) return { error: text("This host cannot read files: pass the KenteiScript itself as `script` instead of `path`.") };
+    if (!byPath) return { error: step("This host cannot read files: pass the KenteiScript itself as `script` instead of `path`.", `Call again with the whole script as \`script\`.`) };
     let source: string;
     try {
       source = await byPath.read(path);
     } catch (error) {
-      return { error: text(`Could not read ${path}: ${errorText(error)}`, "Check the path (a .json file, relative to the project directory or absolute), or pass the script as `script`.") };
+      return { error: step(`Could not read ${path}: ${errorText(error)}`, "Check the path (a .json file, relative to the project directory or absolute), or pass the script as `script`.") };
     }
     try {
       data = JSON.parse(source);
     } catch (error) {
       const where = jsonErrorWhere(source, error);
-      return { error: text(`${path} is not valid JSON${where ? ` (${where})` : ""}: ${errorText(error)}`, `Fix the JSON in ${path} and call again with the same path.`) };
+      return { error: step(`${path} is not valid JSON${where ? ` (${where})` : ""}: ${errorText(error)}`, `Fix the JSON in ${path} and call again with the same path.`) };
     }
   } else if (typeof args.script === "string") {
     try {
       data = JSON.parse(args.script);
     } catch (error) {
       const where = jsonErrorWhere(args.script, error);
-      return { error: text(`\`script\` is a string but not valid JSON${where ? ` (${where})` : ""}: ${errorText(error)}`, "Pass the KenteiScript as a JSON object.") };
+      return { error: step(`\`script\` is a string but not valid JSON${where ? ` (${where})` : ""}: ${errorText(error)}`, "Pass the KenteiScript as a JSON object.") };
     }
   } else {
     data = args.script;
@@ -95,28 +104,45 @@ async function loadScript(context: KenteiContext, args: Record<string, unknown>)
     const script = parseKenteiScript(data, path ?? "The script");
     return path ? { script, path } : { script };
   } catch (error) {
-    return { error: text(errorText(error), `Fix every problem listed above${path ? ` in ${path}` : " in the script"} and call again${path ? " with the same path" : ""}.`) };
+    return { error: step(errorText(error), `Fix every problem listed above${path ? ` in ${path}` : " in the script"} and call again${path ? " with the same path" : ""}.`) };
   }
 }
 
-/** checkScript: the schema (already passed) plus the authoring rules, as warnings. */
+const summary = (script: KenteiScript, path: string | undefined) =>
+  `${path ?? "The script"} is a valid KenteiScript: 「${script.meta.title}」, ${script.questions.length} questions, ${script.rules.questionsPerGame} per game, ` +
+  `levels ${script.rules.minLevel}-${script.rules.maxLevel}; a game with the best answer every time reaches ${maxPoints(script.rules, script.questions)} points.`;
+const listIssues = (issues: AuthoringIssue[]) => `${issues.length} problem(s) to fix:\n${issues.map((i) => `- ${i.where}: ${i.message}`).join("\n")}`;
+
+/** checkScript: the schema (already passed) plus the authoring rules: what present would refuse. */
 function checkResult(script: KenteiScript, path: string | undefined): KenteiResult {
   const issues = authoringIssues(script, { minPerLevel: 1 });
-  const { rules, questions } = script;
-  const head =
-    `${path ?? "The script"} is a valid KenteiScript: 「${script.meta.title}」, ${questions.length} questions, ${rules.questionsPerGame} per game, ` +
-    `levels ${rules.minLevel}-${rules.maxLevel}; a game with the best answer every time reaches ${maxPoints(rules, questions)} points.`;
-  if (!issues.length) return text(`${head}\nNo warnings.`, "Call present with the same script or path to show it.");
-  return text(
-    `${head}\n${issues.length} warning(s):\n${issues.map((i) => `- ${i.where}: ${i.message}`).join("\n")}`,
-    `Fix every warning${path ? ` in ${path}` : ""}, check again, then present.`,
-  );
+  if (!issues.length) return step(`${summary(script, path)}\nNothing to fix.`, `Call present with the same ${path ? "path" : "script"} now to show it.`);
+  return step(`${summary(script, path)}\n${listIssues(issues)}`, `Fix every problem${path ? ` in ${path}` : ""} and call present${path ? " with the same path" : " with the whole script"}.`);
 }
 
-/** present: show the quiz; return at once and let the results arrive as the next message. */
-function presentResult(script: KenteiScript, path: string | undefined): KenteiResult {
+/**
+ * present: check the script as checkScript does and, unless a blocking problem needs fixing, show
+ * the quiz, returning at once and letting the results arrive as the next message. Refusing on a
+ * blocking problem (an option-picking question, a missing injection guard) costs one call; showing
+ * it would cost a quiz that cannot be answered or graded as written. The other problems are
+ * reported with the shown quiz.
+ */
+function presentResult(script: KenteiScript, path: string | undefined, ignoreWording: boolean): KenteiResult {
+  const issues = authoringIssues(script, { minPerLevel: 1 });
+  const blocking = issues.filter((i) => i.blocking && !(ignoreWording && i.overridable));
+  if (blocking.length) {
+    const override = blocking.some((i) => i.overridable)
+      ? ' If a flagged question really does not ask the player to pick from options (the check is a heuristic), call present again with "ignoreWording": true.'
+      : "";
+    return step(
+      `Nothing was shown. ${summary(script, path)}\n${listIssues(issues)}`,
+      `Fix every problem${path ? ` in ${path}` : ""} and call present again${path ? " with the same path" : " with the whole script"}.${override}`,
+    );
+  }
   const { meta, rules, questions } = script;
   const max = maxPoints(rules, questions);
+  // Shown anyway, but the LLM should know (next time) what it did not get right.
+  const notes = issues.length ? ` Not fixed, shown anyway: ${issues.map((i) => `${i.where}: ${i.message}`).join("; ")}.` : "";
   const data: KenteiData = path ? { script, path } : { script };
   const jsonData: KenteiJson = {
     title: meta.title,
@@ -125,14 +151,9 @@ function presentResult(script: KenteiScript, path: string | undefined): KenteiRe
     levels: `${rules.minLevel}-${rules.maxLevel}, starting at ${rules.startLevel}, max ${max} points`,
     ...(path ? { path } : {}),
   };
-  // Shown anyway (the script is valid), but the LLM should know its top grades cannot be earned.
-  const unreachable = rules.grades.filter((g) => g.min > max).map((g) => g.grade);
-  const warning = unreachable.length
-    ? ` Note: a game with the best answer every time reaches ${max} points, so grade${unreachable.length > 1 ? "s" : ""} ${unreachable.join(", ")} cannot be earned; lower the thresholds next time.`
-    : "";
   return {
     toolName: TOOL_NAME,
-    message: `KenteiScript 「${meta.title}」${path ? ` (from ${path})` : ""} is shown to the user: ${rules.questionsPerGame} of ${questions.length} questions; each answer is graded by JEV as it is given.${warning}`,
+    message: `KenteiScript 「${meta.title}」${path ? ` (from ${path})` : ""} is shown to the user: ${rules.questionsPerGame} of ${questions.length} questions; each answer is graded by JEV as it is given.${notes}`,
     title: meta.title,
     data,
     jsonData,
@@ -165,18 +186,18 @@ export async function executeKentei(context: KenteiContext, args: unknown, env: 
   const input = isRecord(args) ? args : {};
   const action = input.action;
   if (!isAction(action)) {
-    return text(`Unknown action ${JSON.stringify(action ?? null)}: use one of ${ACTIONS.join(", ")}.`, "Start with getGuide.");
+    return step(`Unknown action ${JSON.stringify(action ?? null)}: use one of ${ACTIONS.join(", ")}.`, `Start with getGuide.`);
   }
   switch (action) {
     case "getGuide":
-      return text(AUTHORING_GUIDE);
+      return step(AUTHORING_GUIDE, `Now write the KenteiScript and call present with it, in this same turn.`);
     case "getSchema":
-      return text(JSON.stringify(kenteiJsonSchema()));
+      return step(JSON.stringify(kenteiJsonSchema()), `Now write the KenteiScript and call present with it, in this same turn.`);
     case "checkScript":
     case "present": {
       const loaded = await loadScript(context, input);
       if ("error" in loaded) return action === "present" ? { ...loaded.error, message: `Nothing was shown. ${loaded.error.message}` } : loaded.error;
-      return action === "checkScript" ? checkResult(loaded.script, loaded.path) : presentResult(loaded.script, loaded.path);
+      return action === "checkScript" ? checkResult(loaded.script, loaded.path) : presentResult(loaded.script, loaded.path, input.ignoreWording === true);
     }
   }
 }

@@ -13,7 +13,8 @@ export type Action = (typeof ACTIONS)[number];
 
 export const TOOL_DESCRIPTION =
   "Quiz the user in the chat with a KenteiScript: they answer each question in their own words, each answer is graded against the criteria you write, " +
-  "and the results come back as the user's next message. Start with action getGuide, then getSchema; write a script; checkScript and fix every error; then present. " +
+  "and the results come back as the user's next message. Call getGuide, write the script, and call present, all in one go without replying to the user in between; " +
+  "present checks the script and shows it only when nothing needs fixing, so fix what it lists and call it again. " +
   "A long script can be written to a .json file and passed as `path` instead of `script`.";
 
 export const TOOL_DEFINITION: ToolDefinition = {
@@ -28,11 +29,15 @@ export const TOOL_DEFINITION: ToolDefinition = {
         type: "string",
         enum: [...ACTIONS],
         description:
-          "What to do. The loop: getGuide (how to write a KenteiScript that grades well) → getSchema (the exact format) → write the script → checkScript → fix every error → present (shows the quiz; wait for the results message).",
+          "What to do. The loop, in one turn: getGuide (how to write a KenteiScript that grades well, with a complete example) → write the script → present (checks it, then shows the quiz; wait for the results message) → if it lists problems, fix them and present again. checkScript is present's check without showing; getSchema is every field's details, rarely needed.",
       },
       script: {
         type: "object",
         description: "checkScript, present: the KenteiScript inline (format: getSchema). A JSON string is accepted too. Give `script` or `path`, not both.",
+      },
+      ignoreWording: {
+        type: "boolean",
+        description: "present: show the quiz although a question was flagged as asking to pick from options, when you have checked that it does not.",
       },
       path: {
         type: "string",

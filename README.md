@@ -52,7 +52,11 @@ What exams and hiring tests need, and the language and MulmoKentei don't have ye
 - **Review**: a list of every answer and its grade for the teacher or interviewer, with the
   uncertain ones flagged. JEV returns a probability for each grade, so an answer whose top grade
   is below, say, 0.6 can be marked for a human to check.
-- **Time limits and sittings**: a window in which the test can be taken.
+- **A time limit per question**, kept by the view ([#1](https://github.com/receptron/kenteiscript/issues/1)).
+
+In chat, a KenteiScript can also be written by the LLM on the spot and taken right there:
+[#2](https://github.com/receptron/kenteiscript/issues/2) proposes a gui-chat-protocol plugin for
+MulmoClaude and MulmoTerminal that shows the quiz in a view and sends the results back to the LLM.
 
 For any decision that matters to a person — a grade on a report card, a job offer — use the model's
 grades as a first pass that a human reviews, not as the final word.
@@ -72,7 +76,8 @@ This repository holds:
 > KenteiScript（戦国検定・機械学習検定・日本語検定）と、それを動かすサンプルサービス **MulmoKentei（マルモ検定）** が入っています。
 > 検定だけでなく、授業のあとの理解度の確認、期末試験、会社の入社試験などにも使えるように育てていきます。理解度の確認は今の
 > 仕組みで使えます。試験に使うには、全員に同じ問題を出す固定モード、受験者ごとの結果、採点の見直し（確信度の低い採点に印を
-> つける）、時間制限が必要です（今後の課題）。人の評価に関わる判断では、モデルの採点を最終結果とせず、人が見直してください。
+> つける）、1 問ごとの時間制限（#1）が必要です（今後の課題）。
+> MulmoClaude や MulmoTerminal の中で、LLM がその場で作った KenteiScript に答え、結果を LLM に返すプラグインも提案中です（#2）。人の評価に関わる判断では、モデルの採点を最終結果とせず、人が見直してください。
 
 ## The format
 

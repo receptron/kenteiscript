@@ -148,9 +148,12 @@ export default tseslint.config(
   },
   {
     rules: {
-      // A loop counter and a discarded binding are not what this is aimed at; a variable called
-      // `d` holding a customer record is. `js`, `fs`, `os` are the conventional module aliases.
-      "id-length": ["error", { min: 3, exceptions: ["_", "i", "j", "k", "id", "ok", "to", "up", "js", "fs", "os"] }],
+      // Off: short names (`q` for a question, `r` for a result) are this codebase's idiom.
+      "id-length": "off",
+      // Off: these flag every `obj[key]` and every fs call with a computed path. Here the keys are
+      // typed unions and the paths are the repo's own files read by local scripts, so every hit was noise.
+      "security/detect-object-injection": "off",
+      "security/detect-non-literal-fs-filename": "off",
     },
   },
   {
@@ -160,6 +163,8 @@ export default tseslint.config(
       "max-lines": "off",
       "max-lines-per-function": "off",
       "sonarjs/no-duplicate-string": "off",
+      // Tests define small stand-in components next to each other.
+      "vue/one-component-per-file": "off",
     },
   },
   {

@@ -1,0 +1,306 @@
+{
+  "version": 1,
+  "tool": "ever-better",
+  "phase": "drain",
+  "updatedAt": "2026-10-16T21:17:43.027Z",
+  "frozenAt": "2026-10-16T21:17:12.473Z",
+  "diagnosedAt": "2026-10-16T21:17:35.235Z",
+  "diagnosedCommit": "0d5c10b6f42fe9cd6c18c8da9cc64779b1c4726b",
+  "diagnosis": {
+    "packageManager": "yarn",
+    "language": "mixed",
+    "framework": "vue",
+    "runtime": "both",
+    "typescriptFileRatio": 0.65625,
+    "tooling": {
+      "eslint": "flat",
+      "prettier": true,
+      "testRunner": "none",
+      "knip": false,
+      "jscpd": false,
+      "secretScanning": true,
+      "agentInstructions": [
+        "CLAUDE.md"
+      ]
+    },
+    "scripts": {
+      "lint": true,
+      "format": true,
+      "build": true,
+      "typecheck": true,
+      "test": true
+    },
+    "ci": {
+      "present": true,
+      "runners": [
+        "ubuntu-latest"
+      ],
+      "runsLint": false,
+      "runsTest": true,
+      "runsBuild": true,
+      "runsTypecheck": true,
+      "runsEverBetterCheck": false
+    },
+    "sizes": {
+      "total": 34,
+      "overFileLimit": 2,
+      "largest": [
+        {
+          "path": "src/plugin/vue/View.vue",
+          "ext": "vue",
+          "lines": 740
+        },
+        {
+          "path": "test/plugin.test.ts",
+          "ext": "ts",
+          "lines": 650
+        }
+      ]
+    },
+    "gaps": [
+      {
+        "id": "typescript-partial",
+        "title": "Only 66% of sources are TypeScript",
+        "detail": "The type-aware rules cover the typed part only, so the remaining .js files are the blind spot the counts will not show.",
+        "phase": "tighten"
+      },
+      {
+        "id": "test-runner",
+        "title": "No test runner",
+        "detail": "Draining warnings finds bugs. Without a runner there is nowhere to pin them.",
+        "phase": "bootstrap"
+      },
+      {
+        "id": "knip",
+        "title": "No dead-code detection",
+        "detail": "knip reports unused exports and files. Report-only at first; a counter later.",
+        "phase": "tighten"
+      },
+      {
+        "id": "jscpd",
+        "title": "No duplication detection",
+        "detail": "jscpd is what turns 'this feels repetitive' into a number that can only go down.",
+        "phase": "split"
+      },
+      {
+        "id": "ci-runners",
+        "title": "CI does not run on macos, windows",
+        "detail": "Path handling and file watching break per platform, and only per platform.",
+        "phase": "review"
+      },
+      {
+        "id": "ci-lint",
+        "title": "CI does not run lint",
+        "detail": "The rules are configured but nothing runs them on a pull request.",
+        "phase": "review"
+      },
+      {
+        "id": "ci-gate",
+        "title": "CI does not run `ever-better check`",
+        "detail": "A baseline is only a ratchet if something rejects a regression. Thorough CI that never runs the gate enforces nothing, and looks identical from the outside.",
+        "phase": "review"
+      },
+      {
+        "id": "file-size",
+        "title": "2 files over 600 lines",
+        "detail": "These are the split-and-DRY backlog. Knowing the count now makes the limit a choice.",
+        "phase": "split"
+      },
+      {
+        "id": "tsconfig-strictness",
+        "title": "6 strictness flags `strict` does not include are off",
+        "detail": "Measured with `tsc --showConfig`, after every extends: noUncheckedIndexedAccess, exactOptionalPropertyTypes, noImplicitReturns, noFallthroughCasesInSwitch, noImplicitOverride, noPropertyAccessFromIndexSignature. Type errors have no suppression mechanism, so enable them one at a time and measure the cost first.",
+        "phase": "tighten"
+      }
+    ]
+  },
+  "rules": {
+    "sonarjs/super-linear-regex": {
+      "baseline": 2,
+      "current": 2,
+      "status": "draining"
+    },
+    "sonarjs/no-nested-conditional": {
+      "baseline": 8,
+      "current": 8,
+      "status": "draining"
+    },
+    "sonarjs/no-os-command-from-path": {
+      "baseline": 1,
+      "current": 1,
+      "status": "draining"
+    },
+    "complexity": {
+      "baseline": 5,
+      "current": 5,
+      "status": "draining"
+    },
+    "sonarjs/no-nested-template-literals": {
+      "baseline": 12,
+      "current": 12,
+      "status": "draining"
+    },
+    "@typescript-eslint/restrict-template-expressions": {
+      "baseline": 60,
+      "current": 60,
+      "status": "draining"
+    },
+    "sonarjs/regex-complexity": {
+      "baseline": 3,
+      "current": 3,
+      "status": "draining"
+    },
+    "max-lines-per-function": {
+      "baseline": 2,
+      "current": 2,
+      "status": "draining"
+    },
+    "sonarjs/cognitive-complexity": {
+      "baseline": 6,
+      "current": 6,
+      "status": "draining"
+    },
+    "@typescript-eslint/consistent-type-assertions": {
+      "baseline": 45,
+      "current": 45,
+      "status": "draining"
+    },
+    "@typescript-eslint/no-non-null-assertion": {
+      "baseline": 48,
+      "current": 48,
+      "status": "draining"
+    },
+    "@typescript-eslint/consistent-type-definitions": {
+      "baseline": 1,
+      "current": 1,
+      "status": "draining"
+    },
+    "sonarjs/reduce-initial-value": {
+      "baseline": 2,
+      "current": 2,
+      "status": "draining"
+    },
+    "@typescript-eslint/prefer-nullish-coalescing": {
+      "baseline": 7,
+      "current": 7,
+      "status": "draining"
+    },
+    "@typescript-eslint/no-unnecessary-type-assertion": {
+      "baseline": 31,
+      "current": 31,
+      "status": "draining"
+    },
+    "@typescript-eslint/no-base-to-string": {
+      "baseline": 4,
+      "current": 4,
+      "status": "draining"
+    },
+    "@typescript-eslint/no-unnecessary-condition": {
+      "baseline": 13,
+      "current": 13,
+      "status": "draining"
+    },
+    "@typescript-eslint/no-confusing-void-expression": {
+      "baseline": 2,
+      "current": 2,
+      "status": "draining"
+    },
+    "sonarjs/no-alphabetical-sort": {
+      "baseline": 5,
+      "current": 5,
+      "status": "draining"
+    },
+    "@typescript-eslint/no-unsafe-return": {
+      "baseline": 1,
+      "current": 1,
+      "status": "draining"
+    },
+    "@typescript-eslint/no-unnecessary-type-arguments": {
+      "baseline": 3,
+      "current": 3,
+      "status": "draining"
+    },
+    "@typescript-eslint/no-invalid-void-type": {
+      "baseline": 2,
+      "current": 2,
+      "status": "draining"
+    },
+    "@typescript-eslint/prefer-optional-chain": {
+      "baseline": 1,
+      "current": 1,
+      "status": "draining"
+    },
+    "@typescript-eslint/no-floating-promises": {
+      "baseline": 1,
+      "current": 1,
+      "status": "draining"
+    },
+    "max-lines": {
+      "baseline": 1,
+      "current": 1,
+      "status": "draining"
+    },
+    "@typescript-eslint/no-unsafe-argument": {
+      "baseline": 7,
+      "current": 7,
+      "status": "draining"
+    },
+    "@typescript-eslint/no-unsafe-assignment": {
+      "baseline": 14,
+      "current": 14,
+      "status": "draining"
+    },
+    "@typescript-eslint/no-unsafe-call": {
+      "baseline": 7,
+      "current": 7,
+      "status": "draining"
+    },
+    "@typescript-eslint/no-unsafe-member-access": {
+      "baseline": 61,
+      "current": 61,
+      "status": "draining"
+    },
+    "@typescript-eslint/no-empty-function": {
+      "baseline": 3,
+      "current": 3,
+      "status": "draining"
+    },
+    "@typescript-eslint/no-unused-vars": {
+      "baseline": 1,
+      "current": 1,
+      "status": "draining"
+    },
+    "sonarjs/unused-import": {
+      "baseline": 1,
+      "current": 1,
+      "status": "draining"
+    },
+    "@typescript-eslint/require-await": {
+      "baseline": 4,
+      "current": 4,
+      "status": "draining"
+    },
+    "sonarjs/different-types-comparison": {
+      "baseline": 1,
+      "current": 1,
+      "status": "draining"
+    },
+    "@typescript-eslint/no-explicit-any": {
+      "baseline": 12,
+      "current": 12,
+      "status": "draining"
+    },
+    "@typescript-eslint/restrict-plus-operands": {
+      "baseline": 1,
+      "current": 1,
+      "status": "draining"
+    }
+  },
+  "counters": {
+    "eslint:warnings": {
+      "baseline": 2,
+      "current": 2
+    }
+  },
+  "log": []
+}

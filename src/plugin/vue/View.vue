@@ -207,7 +207,13 @@ function load(result: ToolResult): void {
 watch(
   () => props.selectedResult,
   (result, old) => {
-    if (!result) return;
+    if (!result) {
+      // The host cleared the selection: a grade or a send still in flight belongs to a game that is
+      // no longer selected, so it must not change it when it settles.
+      generation++;
+      sending.value = false;
+      return;
+    }
     if (old && script.value && old.uuid === result.uuid && old.data === result.data) return;
     load(result);
   },

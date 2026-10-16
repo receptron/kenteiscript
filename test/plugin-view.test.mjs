@@ -399,6 +399,42 @@ test("an async sendTextMessage is awaited: Promise<false> or a rejection leaves 
   app.unmount();
 });
 
+test("clearing selectedResult while a send is pending: the late result does not mark the old game as sent", async () => {
+  let settle;
+  const el = document.createElement("div");
+  document.body.appendChild(el);
+  const result = await executeKentei({}, { action: "present", script: structuredClone(SAMPLE_SCRIPT) });
+  const host = reactive({ current: { ...result, toolName: "manageKenteiScript", uuid: "s-clear" } });
+  const app = createApp({
+    render: () =>
+      h(plugin.viewComponent, {
+        selectedResult: host.current,
+        sendTextMessage: () => new Promise((resolve) => (settle = resolve)),
+        onUpdateResult: (r) => (host.current = r),
+      }),
+  });
+  app.provide(PLUGIN_RUNTIME_KEY, correctRuntime());
+  app.mount(el);
+  await flush();
+  const $ = (id) => el.querySelector(`[data-testid="${id}"]`);
+  const click = async (id) => {
+    $(id).dispatchEvent(new dom.window.MouseEvent("click", { bubbles: true }));
+    await flush();
+  };
+  await click("kentei-start-button");
+  for (let i = 0; i < 4; i++) {
+    await click("kentei-submit");
+    await click("kentei-next");
+  }
+  assert.equal($("kentei-sent").textContent, "", "the automatic send is pending");
+  host.current = null; // the host clears the selection but keeps the View mounted
+  await flush();
+  settle(true);
+  await flush();
+  assert.equal($("kentei-sent").textContent, "", "the late result did not mark the detached game as sent");
+  app.unmount();
+});
+
 test("unmounting while a grade is pending stops everything: no timer restart, no second paid grade", async () => {
   const script = structuredClone(SAMPLE_SCRIPT);
   script.rules.timeLimitPerQuestion = 1;

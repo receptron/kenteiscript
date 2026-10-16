@@ -9,6 +9,10 @@ format by example, how it works) live in **README.md** — read it for anything 
 - `src/grading.ts` is shared with the Node scripts, which import the `.ts` file directly through
   Node's type stripping. Keep it free of Worker and Node APIs. Node 22.18+ is required for that.
 - Package manager: **npm** (package-lock.json).
+- The npm package name is **`kenteiscript`** (npm names must be lowercase, so not `KenteiScript`),
+  kept for a possible future publish. `"private": true` stays until that is decided, so nothing
+  is published by accident. The Worker and D1 are still named `mulmo-kentei` in `wrangler.jsonc`:
+  those are deployment names, and renaming them means a new site URL and a new database.
 - Player-facing text is Japanese. Code, comments, commit messages and docs are English.
 
 ## KenteiScript

@@ -23,7 +23,7 @@ export const INJECTION_GUARD_EN = {
 //     same clause denies them (「選択肢はありません」, "There are no multiple-choice questions"), and
 //     must not use the grading types' names, which are the author's vocabulary.
 const ASKS_TO_PICK = [
-  /[はがの]どれ(です|でしょう|か?\s*[？?])|どれが(正しい|適切|当てはまる)|(を|から)選んで(ください|下さい|答え)|選びなさい|選べ(?=[。．！？!?」\s]|$)|次のうち|以下のうち|下記のうち|次の中から/,
+  /[はがの]どれ(です|でしょう|か?\s*[？?])|どれが(正しい|適切|当てはまる)(の|もの)?(です|でしょう)?か?\s*[？?]|(を|から)選んで(ください|下さい|答え)|選びなさい|選べ(?=[。．！？!?」\s]|$)|次のうち|以下のうち|下記のうち|次の中から/,
   /[Ww]hich of the following|\bthe (options|choices) (below|above|given|listed)\b/,
   // An imperative to pick THE right one (not SQL's SELECT, not an open "Choose a source and explain").
   /(^|[.:;!?]\s*)(Choose|Select|Pick) (the (correct|right|best|most|true|false|incorrect|wrong|appropriate)\b|from\b|(the )?(answer|option)s?\b)/,
@@ -52,6 +52,9 @@ export interface AuthoringIssue {
    * level, and maxPoints is an estimate, not a proof.
    */
   blocking: boolean;
+  /** A blocking issue judged by a heuristic (question wording): present shows the script anyway
+   *  when the LLM, having read the problem, calls it again with `ignoreWording: true`. */
+  overridable?: true;
 }
 
 /**
@@ -76,6 +79,7 @@ export function authoringIssues(script: KenteiScript, options: { minPerLevel: nu
       issues.push({
         where: q.id,
         blocking: true,
+        overridable: true,
         message: "the question asks the player to pick from options, but no options are shown: the player types the answer. Ask for the answer itself (「〜は何？」, \"What is ...?\")",
       });
     }

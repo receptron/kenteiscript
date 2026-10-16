@@ -35,6 +35,10 @@ export const TOOL_DEFINITION: ToolDefinition = {
         type: "object",
         description: "checkScript, present: the KenteiScript inline (format: getSchema). A JSON string is accepted too. Give `script` or `path`, not both.",
       },
+      ignoreWording: {
+        type: "boolean",
+        description: "present: show the quiz although a question was flagged as asking to pick from options, when you have checked that it does not.",
+      },
       path: {
         type: "string",
         description:

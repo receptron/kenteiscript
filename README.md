@@ -264,7 +264,8 @@ way as presentForm (`@mulmoclaude/form-plugin`), in `src/plugin/`:
     grade reachable);
   - `present`: checks the script the same way and shows the View unless a question lacks the
     injection guard or asks the player to pick from options (then it shows nothing and comes back
-    with every problem); it returns at once with `instructions` to wait for the results. The other
+    with every problem; the wording check is a heuristic, so after reading it the LLM may call
+    again with `"ignoreWording": true`); it returns at once with `instructions` to wait for the results. The other
     problems (start-screen wording, a level with no question, a grade above the estimated maximum)
     are reported with the shown quiz.
 

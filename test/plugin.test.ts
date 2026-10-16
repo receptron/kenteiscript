@@ -77,7 +77,7 @@ test("TOOL_DEFINITION is one small action tool; the format is served by getSchem
   assert.equal(TOOL_DEFINITION.name, "manageKenteiScript");
   assert.deepEqual(p.required, ["action"]);
   assert.deepEqual(p.properties.action!.enum, ["getGuide", "getSchema", "checkScript", "present"]);
-  assert.deepEqual(Object.keys(p.properties).sort(), ["action", "path", "script"]);
+  assert.deepEqual(Object.keys(p.properties).sort(), ["action", "ignoreWording", "path", "script"]);
   assert.deepEqual(p.properties.script, { type: "object", description: p.properties.script!.description });
   for (const [key, prop] of Object.entries(p.properties)) assert.equal(typeof prop.description, "string", key);
   const bytes = Buffer.byteLength(JSON.stringify(TOOL_DEFINITION));
@@ -324,7 +324,7 @@ test("questions that promise options, and a start screen that talks about Choice
     "選択肢を使わずに答えてください。",
     "There are no multiple-choice questions; type each answer.",
   ];
-  fine.questions[0]!.question = "写真を「猫」「犬」のどれかに分けるタスクを何という？";
+  fine.questions[0]!.question = "写真を「猫」「犬」のどれかに分けるタスクを何という？ どれが正しいかを判断するとき、何を確かめる？";
   fine.questions[1]!.question = "家康が江戸を選んで本拠にした理由は？ 利用者が配送方法を選べます。選べません、の場合は？";
   fine.questions[2]!.question = "Explain why a neural network might choose the wrong class. Choose a renewable energy source and explain how it generates electricity.";
   fine.questions[3]!.question = "SELECT COUNT(*) FROM users; このSQLは何を返しますか？ 「次のうち」を英語に訳すと？ Translate \"Which of the following\" into Japanese.";
@@ -337,6 +337,12 @@ test("questions that promise options, and a start screen that talks about Choice
   imperative.questions[2]!.question = "Don't guess. Which of the following isn't prime?";
   const refused = await present(imperative);
   assert.equal(refused.data, undefined);
+  assert.match(refused.instructions ?? "", /call present again with "ignoreWording": true/);
+  // The heuristic can be wrong: the LLM may show the quiz anyway, but not skip the injection guard.
+  assert.ok((await run({}, { action: "present", script: imperative, ignoreWording: true })).data);
+  const unguarded = clone(imperative);
+  unguarded.questions[0]!.jev.instructions = "Grade it.";
+  assert.equal((await run({}, { action: "present", script: unguarded, ignoreWording: true })).data, undefined);
   assert.equal((refused.message.match(/the question asks the player to pick from options/g) ?? []).length, 3);
 });
 

@@ -127,12 +127,16 @@ function checkResult(script: KenteiScript, path: string | undefined): KenteiResu
  * it would cost a quiz that cannot be answered or graded as written. The other problems are
  * reported with the shown quiz.
  */
-function presentResult(script: KenteiScript, path: string | undefined): KenteiResult {
+function presentResult(script: KenteiScript, path: string | undefined, ignoreWording: boolean): KenteiResult {
   const issues = authoringIssues(script, { minPerLevel: 1 });
-  if (issues.some((i) => i.blocking)) {
+  const blocking = issues.filter((i) => i.blocking && !(ignoreWording && i.overridable));
+  if (blocking.length) {
+    const override = blocking.some((i) => i.overridable)
+      ? ' If a flagged question really does not ask the player to pick from options (the check is a heuristic), call present again with "ignoreWording": true.'
+      : "";
     return step(
       `Nothing was shown. ${summary(script, path)}\n${listIssues(issues)}`,
-      `Fix every problem${path ? ` in ${path}` : ""} and call present again${path ? " with the same path" : " with the whole script"}.`,
+      `Fix every problem${path ? ` in ${path}` : ""} and call present again${path ? " with the same path" : " with the whole script"}.${override}`,
     );
   }
   const { meta, rules, questions } = script;
@@ -193,7 +197,7 @@ export async function executeKentei(context: KenteiContext, args: unknown, env: 
     case "present": {
       const loaded = await loadScript(context, input);
       if ("error" in loaded) return action === "present" ? { ...loaded.error, message: `Nothing was shown. ${loaded.error.message}` } : loaded.error;
-      return action === "checkScript" ? checkResult(loaded.script, loaded.path) : presentResult(loaded.script, loaded.path);
+      return action === "checkScript" ? checkResult(loaded.script, loaded.path) : presentResult(loaded.script, loaded.path, input.ignoreWording === true);
     }
   }
 }

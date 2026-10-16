@@ -34,8 +34,13 @@ changes with those uses in mind, and do not claim them as supported until they a
   `server.ts` (the executor in the legacy `(context, args)` shape, not a `definePlugin` factory,
   because hosts give a context, and so `files.byPath` for `path`, only to that shape; it takes the
   tool's actions and the View's `{ kind: "grade" }` dispatch) and
-  `grade.ts` (server-side JEV grading with the host's `TYPESAFE_API_KEY`). `yarn build:plugin`
-  builds it with vite into `dist/` (git-ignored); `scripts/gen-plugin-types.mjs` then rewrites
+  `grade.ts` (server-side JEV grading with the host's `TYPESAFE_API_KEY`). The key is
+  **required**: `core/env.ts` holds the one check (`hasJevKey`, on the `GradeEnv` from
+  `envFromProcess`) and the one message (`MISSING_KEY_MESSAGE`); every tool action makes the check
+  first and fails with that message and no `data`, and the View's grade dispatch throws it. There is
+  no LLM-grading fallback (it was removed): never record an answer without a JEV grade, and keep
+  `toPlayState` starting over on a viewState from the old fallback (`mode: "llm"`, ungraded answers).
+  `yarn build:plugin` builds it with vite into `dist/` (git-ignored); `scripts/gen-plugin-types.mjs` then rewrites
   `dist/types/kentei-script.d.ts` as plain types so the declarations do not import Zod. The tool is
   action-based (`getGuide`, `getSchema`, `checkScript`, `present`) to keep its definition small;
   the authoring guide it serves is `AUTHORING_GUIDE` in `src/authoring.ts`, so update it with the

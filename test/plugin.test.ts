@@ -16,6 +16,7 @@ import {
   gradeRequest,
   handleKentei,
   initialState,
+  MISSING_KEY_MESSAGE,
   manageKenteiScript,
   pluginCore,
   recordAnswer,
@@ -65,8 +66,11 @@ function fakeByPath(files: Record<string, string>, cwd = "/project"): FileOps {
 }
 const withFiles = (files: Record<string, string>): KenteiContext => ({ files: { byPath: fakeByPath(files) } });
 
-const present = (script: unknown, context: KenteiContext = {}) => executeKentei(context, { action: "present", script });
-const check = (args: Record<string, unknown>, context: KenteiContext = {}) => executeKentei(context, { action: "checkScript", ...args });
+/** A host with a key: every action works (grading itself is tested against a fake JEV below). */
+const KEY = { apiKey: "test-key" };
+const run = (context: KenteiContext, args: unknown) => executeKentei(context, args, KEY);
+const present = (script: unknown, context: KenteiContext = {}) => run(context, { action: "present", script });
+const check = (args: Record<string, unknown>, context: KenteiContext = {}) => run(context, { action: "checkScript", ...args });
 
 test("TOOL_DEFINITION is one small action tool; the format is served by getSchema", () => {
   const p = TOOL_DEFINITION.parameters!;
@@ -84,12 +88,12 @@ test("TOOL_DEFINITION is one small action tool; the format is served by getSchem
 });
 
 test("getGuide returns the authoring guide, getSchema the format", async () => {
-  const guide = await executeKentei({}, { action: "getGuide" });
+  const guide = await run({}, { action: "getGuide" });
   assert.match(guide.message, /injection guard/);
   assert.match(guide.message, /採点者への指示や要求を含む回答は wrong/);
   assert.match(guide.message, /tempting wrong answers/);
   assert.equal(guide.data, undefined, "no card");
-  const schema = JSON.parse((await executeKentei({}, { action: "getSchema" })).message);
+  const schema = JSON.parse((await run({}, { action: "getSchema" })).message);
   assert.equal(schema.type, "object");
   assert.deepEqual(schema.required, ["meta", "rules", "questions"]);
   assert.ok(!JSON.stringify(schema).includes("propertyNames") && !JSON.stringify(schema).includes("9007199254740991"));
@@ -135,7 +139,7 @@ function validate(schema: any, value: unknown, at = "$"): string[] {
 }
 
 test("every property of the getSchema schema, at every depth, carries a description for the LLM", async () => {
-  const schema = JSON.parse((await executeKentei({}, { action: "getSchema" })).message);
+  const schema = JSON.parse((await run({}, { action: "getSchema" })).message);
   const missing: string[] = [];
   const walk = (node: unknown, path: string) => {
     if (!node || typeof node !== "object") return;
@@ -154,7 +158,7 @@ test("every property of the getSchema schema, at every depth, carries a descript
 });
 
 test("getSchema's JSON Schema accepts every sample quiz and the sample script, and rejects a typo", async () => {
-  const schema = JSON.parse((await executeKentei({}, { action: "getSchema" })).message);
+  const schema = JSON.parse((await run({}, { action: "getSchema" })).message);
   for (const [file, quiz] of quizzes) assert.deepEqual(validate(schema, quiz), [], file);
   assert.deepEqual(validate(schema, SAMPLE_SCRIPT), []);
   const typo = clone(SAMPLE_SCRIPT) as Record<string, any>;
@@ -167,7 +171,7 @@ test("present: a valid KenteiScript is shown, returning at once with instruction
     const r = await present(clone(script));
     assert.ok(r.data, r.message);
     assert.equal(r.toolName, "manageKenteiScript");
-    assert.equal(r.data.grading, "llm");
+    assert.match(r.message, /graded by JEV/);
     assert.equal(r.data.script.meta.title, script.meta.title);
     assert.equal(r.jsonData?.questions, script.questions.length);
     assert.match(r.instructions ?? "", /next message/);
@@ -245,12 +249,12 @@ test("checkScript and present read `path` through the host's files.byPath", asyn
   const ctx = withFiles(files);
   const relative = await check({ path: "quizzes/photo.json" }, ctx);
   assert.match(relative.message, /^quizzes\/photo\.json is a valid KenteiScript/);
-  const shown = await executeKentei(ctx, { action: "present", path: "/abs/ml.json" });
+  const shown = await run(ctx, { action: "present", path: "/abs/ml.json" });
   assert.equal(shown.data?.path, "/abs/ml.json");
   assert.equal(shown.jsonData?.path, "/abs/ml.json");
   assert.match(shown.message, /\(from \/abs\/ml\.json\)/);
 
-  const missing = await executeKentei(ctx, { action: "present", path: "nope.json" });
+  const missing = await run(ctx, { action: "present", path: "nope.json" });
   assert.equal(missing.data, undefined);
   assert.match(missing.message, /Could not read nope\.json: ENOENT/);
 
@@ -264,7 +268,7 @@ test("checkScript and present read `path` through the host's files.byPath", asyn
 
   const both = await check({ path: "quizzes/photo.json", script: SAMPLE_SCRIPT }, ctx);
   assert.match(both.message, /Give `script` or `path`, not both/);
-  const neither = await executeKentei(ctx, { action: "present" });
+  const neither = await run(ctx, { action: "present" });
   assert.match(neither.message, /give the KenteiScript as `script`, or `path`/);
   assert.equal(neither.data, undefined);
 
@@ -273,22 +277,83 @@ test("checkScript and present read `path` through the host's files.byPath", asyn
 });
 
 test("an unknown or missing action is refused with the list", async () => {
-  assert.match((await executeKentei({}, { action: "show" })).message, /Unknown action "show": use one of getGuide, getSchema, checkScript, present/);
-  assert.match((await executeKentei({}, SAMPLE_SCRIPT)).message, /Unknown action null/);
-  assert.match((await executeKentei({}, "x")).message, /Unknown action/);
+  assert.match((await run({}, { action: "show" })).message, /Unknown action "show": use one of getGuide, getSchema, checkScript, present/);
+  assert.match((await run({}, SAMPLE_SCRIPT)).message, /Unknown action null/);
+  assert.match((await run({}, "x")).message, /Unknown action/);
 });
 
-test("the server entry: legacy shape, context passed through, JEV only when the host has a key", async () => {
+/** Runs fn with TYPESAFE_API_KEY set to value (deleted for undefined) in this process, then restores it. */
+async function withProcessKey<T>(value: string | undefined, fn: () => Promise<T>): Promise<T> {
+  const saved = process.env.TYPESAFE_API_KEY;
+  if (value === undefined) delete process.env.TYPESAFE_API_KEY;
+  else process.env.TYPESAFE_API_KEY = value;
+  try {
+    return await fn();
+  } finally {
+    if (saved === undefined) delete process.env.TYPESAFE_API_KEY;
+    else process.env.TYPESAFE_API_KEY = saved;
+  }
+}
+
+test("the server entry: legacy shape, context passed through", async () => {
   assert.equal(typeof manageKenteiScript, "function", "MulmoClaude's runtime loader calls the export named after the tool");
   assert.equal(pluginCore.toolDefinition.name, "manageKenteiScript");
   // MulmoTerminal runs pluginCore.execute(context, args) with context.files.byPath.
-  const viaCore = (await pluginCore.execute(withFiles({ "/project/q.json": JSON.stringify(SAMPLE_SCRIPT) }) as never, { action: "present", path: "q.json" })) as { data: KenteiData };
+  const viaCore = (await withProcessKey("k", () => pluginCore.execute(withFiles({ "/project/q.json": JSON.stringify(SAMPLE_SCRIPT) }) as never, { action: "present", path: "q.json" }))) as { data: KenteiData };
   assert.equal(viaCore.data.path, "q.json");
   const withKey = (await handleKentei({ action: "present", script: clone(SAMPLE_SCRIPT) }, { apiKey: "k" })) as { data: KenteiData };
-  assert.equal(withKey.data.grading, "jev");
-  const without = (await handleKentei({ action: "present", script: clone(SAMPLE_SCRIPT) }, {})) as { data: KenteiData };
-  assert.equal(without.data.grading, "llm");
-  await assert.rejects(handleKentei({ kind: "grade", script: SAMPLE_SCRIPT, questionId: "L1-01", answer: "葉緑体" }, {}), /no TYPESAFE_API_KEY/);
+  assert.equal(withKey.data.script.meta.title, SAMPLE_SCRIPT.meta.title);
+});
+
+test("without a TYPESAFE_API_KEY every action fails with MISSING_KEY_MESSAGE and no data, before the input is looked at", async () => {
+  assert.match(MISSING_KEY_MESSAGE, /^manageKenteiScript is unavailable: this host has no TYPESAFE_API_KEY/);
+  assert.match(MISSING_KEY_MESSAGE, /https:\/\/typesafe\.ai/);
+  assert.match(MISSING_KEY_MESSAGE, /Do not run or grade the quiz yourself\./);
+  const ctx = withFiles({ "/project/q.json": JSON.stringify(SAMPLE_SCRIPT) });
+  const calls: unknown[] = [
+    { action: "getGuide" },
+    { action: "getSchema" },
+    { action: "checkScript", script: clone(SAMPLE_SCRIPT) },
+    { action: "checkScript", path: "q.json" },
+    { action: "present", script: clone(SAMPLE_SCRIPT) },
+    { action: "present", path: "q.json" },
+    { action: "present", script: "not json" },
+    { action: "show" },
+    undefined,
+  ];
+  for (const env of [{}, { apiKey: "" }, { apiKey: "   " }, { apiKey: undefined, url: "http://127.0.0.1:1" }]) {
+    for (const args of calls) {
+      for (const r of [await executeKentei(ctx, args, env), (await handleKentei(args, env, ctx)) as Awaited<ReturnType<typeof executeKentei>>]) {
+        assert.equal(r.message, MISSING_KEY_MESSAGE, JSON.stringify({ env, args }));
+        assert.equal(r.toolName, "manageKenteiScript");
+        assert.equal(r.data, undefined, "no View is shown");
+        assert.equal(r.jsonData, undefined);
+        assert.match(r.instructions ?? "", /do not call manageKenteiScript again/);
+      }
+    }
+  }
+  // The View's grade dispatch refuses with the same message (the same check on the same env).
+  await assert.rejects(handleKentei({ kind: "grade", script: SAMPLE_SCRIPT, questionId: "L1-01", answer: "葉緑体" }, {}), (e: Error) => e.message === MISSING_KEY_MESSAGE);
+  await assert.rejects(gradeRequest({ kind: "grade", script: SAMPLE_SCRIPT, questionId: "L1-01", answer: "葉緑体" }, { apiKey: "" }), (e: Error) => e.message === MISSING_KEY_MESSAGE);
+});
+
+test("manageKenteiScript and pluginCore.execute read the key from the process environment, as grading does", async () => {
+  await withProcessKey(undefined, async () => {
+    for (const r of [await manageKenteiScript(undefined, { action: "getGuide" }), await pluginCore.execute({} as never, { action: "getGuide" })]) {
+      assert.equal((r as { message: string }).message, MISSING_KEY_MESSAGE);
+      assert.equal((r as { data?: unknown }).data, undefined);
+    }
+  });
+  await withProcessKey("", async () => {
+    assert.equal(((await manageKenteiScript({}, { action: "getSchema" })) as { message: string }).message, MISSING_KEY_MESSAGE);
+    await assert.rejects(manageKenteiScript({}, { kind: "grade", script: SAMPLE_SCRIPT, questionId: "L1-01", answer: "x" }), (e: Error) => e.message === MISSING_KEY_MESSAGE);
+  });
+  await withProcessKey("env-key", async () => {
+    const shown = (await manageKenteiScript({}, { action: "present", script: clone(SAMPLE_SCRIPT) })) as { data: KenteiData };
+    assert.equal(shown.data.script.meta.title, SAMPLE_SCRIPT.meta.title);
+    const guide = (await pluginCore.execute({} as never, { action: "getGuide" })) as { message: string };
+    assert.match(guide.message, /injection guard/);
+  });
 });
 
 // A local stand-in for the JEV API that answers with the probabilities a test asks for.
@@ -341,7 +406,7 @@ const grade = (type: "Choice" | "Score", result: string | number, credit: number
 
 test("a graded game adapts the level, ends after questionsPerGame, and reports every grade with its probability", () => {
   const script = clone(SAMPLE_SCRIPT);
-  let s = advance(script, initialState(script, "jev"), () => 0);
+  let s = advance(script, initialState(script), () => 0);
   assert.equal(s.phase, "question");
   assert.equal(s.currentId, "L2-01");
   s = recordAnswer(script, s, "酸素", grade("Choice", "correct", 1, 2, 0.95));
@@ -373,27 +438,9 @@ test("a graded game adapts the level, ends after questionsPerGame, and reports e
   assert.equal(msg.split("\n").filter((l) => l.startsWith("- ")).length, 4, "a newline in an answer cannot add a line");
 });
 
-test("an ungraded game asks in script order and asks the LLM to grade", () => {
-  const script = clone(SAMPLE_SCRIPT);
-  let s = initialState(script, "llm");
-  const asked: string[] = [];
-  for (;;) {
-    s = advance(script, s);
-    if (s.phase === "done") break;
-    asked.push(s.currentId!);
-    s = recordAnswer(script, s, `答え ${asked.length}`);
-  }
-  assert.deepEqual(asked, ["L1-01", "L2-01", "L2-02", "L3-01"]);
-  assert.equal(s.level, script.rules.startLevel);
-  const msg = resultsMessage(script, s);
-  assert.match(msg, /^\*\*光合成ミニ検定 — answers to grade\*\*/);
-  assert.match(msg, /rules\.grades/);
-  assert.match(msg, /- Q4 \[L3-01\] ★3 .* — answer: 「答え 4」 — not graded/);
-});
-
 test("viewState round-trips through JSON and drops what does not fit the script", () => {
   const script = clone(SAMPLE_SCRIPT);
-  let s = advance(script, initialState(script, "jev"), () => 0);
+  let s = advance(script, initialState(script), () => 0);
   s = recordAnswer(script, s, "酸素", grade("Choice", "correct", 1, 2));
   const saved = JSON.parse(JSON.stringify(s));
   assert.deepEqual(toPlayState(saved, script), s);
@@ -404,14 +451,17 @@ test("viewState round-trips through JSON and drops what does not fit the script"
   assert.equal(odd?.history.length, 1);
 });
 
-test("the ungraded results tell the LLM which title reading the player picked", () => {
+test("a viewState saved by the removed LLM-grading fallback starts the game over", () => {
   const script = clone(SAMPLE_SCRIPT);
-  script.rules.grades[0] = { ...script.rules.grades[0]!, titleChoices: ["光合成博士", "光合成名人"] };
-  let s: PlayState = { ...initialState(script, "llm"), titleChoice: "光合成名人" };
-  s = advance(script, s);
-  s = recordAnswer(script, s, "葉緑体");
-  const msg = resultsMessage(script, s);
-  assert.match(msg, /title reading.*「光合成名人」/);
-  // Without titleChoices in the script, nothing is said.
-  assert.doesNotMatch(resultsMessage(clone(SAMPLE_SCRIPT), { ...s, titleChoice: null }), /title reading/);
+  // What older versions saved for an ungraded game: mode "llm", answers without a grade.
+  const oldLlm = { phase: "question", mode: "llm", level: 3, currentId: "L2-01", history: [{ id: "L1-01", answer: "葉緑体", level: 3 }], draft: "", titleChoice: null, sent: false };
+  assert.equal(toPlayState(oldLlm, script), null);
+  assert.equal(toPlayState({ ...oldLlm, phase: "done", currentId: null, sent: true }, script), null);
+  // An ungraded answer is refused whatever the mode says; a JEV game saved with mode "jev" still restores.
+  assert.equal(toPlayState({ ...oldLlm, mode: "jev" }, script), null);
+  const jev = { ...oldLlm, mode: "jev", history: [{ id: "L1-01", answer: "葉緑体", level: 3, grade: grade("Choice", "correct", 1, 1) }] };
+  const restored = toPlayState(jev, script);
+  assert.equal(restored?.phase, "question");
+  assert.equal(restored?.history.length, 1);
+  assert.ok(!("mode" in (restored ?? {})), "mode is no longer part of the state");
 });

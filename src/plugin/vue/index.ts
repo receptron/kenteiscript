@@ -18,8 +18,9 @@ export const plugin: ToolPlugin<KenteiData, KenteiJson, object> = {
   systemPrompt: SYSTEM_PROMPT,
 };
 
-export type { KenteiData, KenteiJson, GradingMode, AnswerGrade, GradeRequest } from "../core/types.ts";
+export type { KenteiData, KenteiJson, AnswerGrade, GradeRequest } from "../core/types.ts";
 export { TOOL_DEFINITION, executeKentei, pluginCore } from "../core/plugin.ts";
+export { MISSING_KEY_MESSAGE } from "../core/env.ts";
 export { samples } from "../core/samples.ts";
 export { View, Preview };
 

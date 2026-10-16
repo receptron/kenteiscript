@@ -233,6 +233,7 @@ explaining something, for a practice test) and the user takes it right there:
 
 ```
 LLM ── getGuide ─► getSchema ─► writes the script (inline, or a .json file) ─► checkScript ─► fixes
+LLM ── any action ──► no TYPESAFE_API_KEY on the host? ──► fails: MISSING_KEY_MESSAGE, no View
 LLM ── present(script | path) ──► schema check ──► View in the chat ◄──► user answers
                                        │                  │ each answer: runtime.dispatch
                              errors back to the LLM       ▼
@@ -256,6 +257,18 @@ way as presentForm (`@mulmoclaude/form-plugin`), in `src/plugin/`:
   - `present`: validates it and shows the View; it returns at once with `instructions` to wait for
     the results. An invalid script shows nothing and comes back with every error.
 
+  **The host must have a `TYPESAFE_API_KEY`.** Every action checks for it first (an empty value
+  counts as missing), before looking at its input, and without it fails with no View and this
+  message (`MISSING_KEY_MESSAGE`, exported), so the LLM tells the user instead of improvising a quiz:
+
+  > manageKenteiScript is unavailable: this host has no TYPESAFE_API_KEY, which KenteiScript needs
+  > to grade answers with JEV (TypeSafe's decision model). Ask the user to set TYPESAFE_API_KEY in
+  > the host's environment (a key is available at https://typesafe.ai) and restart the host. Do not
+  > run or grade the quiz yourself.
+
+  gui-chat-protocol's `ToolResult` has no error flag, so the failure is that `message`, with
+  `instructions` to stop and no `data` (the host renders no card).
+
   `checkScript` and `present` take the script as `script` (an object, or a JSON string) or as
   `path`, a `.json` file relative to the project directory or absolute, which is better for long
   scripts. The plugin reads a `path` through the host's `context.files.byPath`, as presentDocument
@@ -268,10 +281,12 @@ way as presentForm (`@mulmoclaude/form-plugin`), in `src/plugin/`:
 - **Grading.** The JEV key stays on the host's server. The View sends
   `{ kind: "grade", script, questionId, answer }` through the host's plugin dispatch
   (`useRuntime().dispatch`); the plugin's server part grades it with `src/grading.ts`, reading
-  `TYPESAFE_API_KEY` (and the optional `JEV_MODEL`, `JEV_URL`) from the host's environment. Without
-  a key, or in a host that gives the View no runtime, the View collects the answers ungraded, asks
-  them in the script's order (there is no grade to adapt by), and the LLM grades them from the
-  results. If a grading call fails, the player can retry or go on ungraded.
+  `TYPESAFE_API_KEY` (and the optional `JEV_MODEL`, `JEV_URL`) from the host's environment, the
+  same environment the tool's key check reads, so the two cannot disagree. There is no grading
+  without JEV: the dispatch refuses without a key (with `MISSING_KEY_MESSAGE`) and the View shows
+  採点の設定がありません（TYPESAFE_API_KEY） and stays on the question; in a host that gives the View no
+  runtime it says it cannot grade and does not start. If a grading call fails (network, JEV), the
+  player presses 答える again; nothing is recorded without a grade.
 - **The results** arrive as the user's next message:
 
   ```
@@ -283,13 +298,16 @@ way as presentForm (`@mulmoclaude/form-plugin`), in `src/plugin/`:
   ```
 
   Each line carries the question id, the grade (a Choice label, or level/top for Score) and the
-  probability JEV gave it, so the LLM can tell a confident grade from a borderline one. Ungraded
-  answers are marked `not graded`, under a header that asks the LLM to grade them against the
-  criteria and `rules.grades`. The View sends them once when the game ends; if the host reports that
+  probability JEV gave it, so the LLM can tell a confident grade from a borderline one. The View
+  sends them once when the game ends; if the host reports that
   nothing received them (MulmoTerminal's `sendTextMessage` returns `false` when no terminal can take
   the text), it says so and keeps a button to send them again.
 
 ### Adding it to a host
+
+**Requirement:** `TYPESAFE_API_KEY` in the environment of the host's server process (the plugin
+reads it from `process.env`, with the optional `JEV_MODEL` / `JEV_URL`). Without it the tool
+answers every call with `MISSING_KEY_MESSAGE` and shows nothing.
 
 ```sh
 yarn build:plugin   # dist/: index.js (server), vue.js (View, Preview), style.css, types/
@@ -324,8 +342,9 @@ factory could never receive `context.files.byPath`.
   key, wrapped in `wrapWithPluginRuntime("kentei", "manageKenteiScript", …)` (the View's
   `dispatch` must reach `/api/plugin/manageKenteiScript`), with the style imported `?inline`; put
   `manageKenteiScript` in the `render` group in `common/toolGroups.ts`; set `TYPESAFE_API_KEY` in
-  the server's environment.
-- **MulmoClaude:** installed as a runtime plugin it works as is, except `path`: the runtime
+  the server's environment (required: without it every action fails).
+- **MulmoClaude:** installed as a runtime plugin it works as is (with `TYPESAFE_API_KEY` in the
+  server's environment, required), except `path`: the runtime
   dispatch passes an empty context (`server/api/routes/runtime-plugin.ts`), so `path` is refused and
   the LLM passes `script`. For `path`, add a built-in adapter like `src/plugins/presentForm/` (the
   View wrapped by `wrapWithScope`) whose server endpoint calls

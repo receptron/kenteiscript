@@ -16,7 +16,7 @@ for (const key of ["window", "document", "navigator", "Node", "Element", "HTMLEl
 
 const { createApp, h, nextTick, reactive } = await import("vue");
 const { PLUGIN_RUNTIME_KEY } = await import("gui-chat-protocol/vue");
-const { plugin, executeKentei } = await import("../dist/vue.js");
+const { plugin, executeKentei: execute, MISSING_KEY_MESSAGE } = await import("../dist/vue.js");
 const { SAMPLE_SCRIPT } = await import("../src/plugin/core/samples.ts");
 
 const flush = async () => {
@@ -26,9 +26,37 @@ const flush = async () => {
   }
 };
 
-async function mount({ grading, runtime, script = SAMPLE_SCRIPT }) {
+// The tool as a host with a TYPESAFE_API_KEY runs it (without one, present shows nothing at all).
+const executeKentei = (context, args) => execute(context, args, { apiKey: "test-key" });
+
+/** A runtime whose dispatch grades every answer correct, as the server would with a key. */
+const correctRuntime = () => ({
+  calls: [],
+  async dispatch(args, parse) {
+    this.calls.push(args);
+    const q = args.script.questions.find((x) => x.id === args.questionId);
+    const raw = q.jev.type === "Choice"
+      ? { type: "Choice", result: "correct", probabilities: { correct: 0.9 }, credit: 1, points: q.level }
+      : { type: "Score", result: 3, probabilities: { 3: 0.9 }, credit: 1, points: q.level };
+    return parse ? parse(raw) : raw;
+  },
+});
+
+/** Mounts a View for a result, with the runtime provided when one is given. */
+function mountResult(selectedResult, { runtime = null, sendTextMessage = () => {}, onUpdateResult } = {}) {
+  const el = document.createElement("div");
+  document.body.appendChild(el);
+  const errors = [];
+  const app = createApp({ render: () => h(plugin.viewComponent, { selectedResult, sendTextMessage, onUpdateResult }) });
+  if (runtime) app.provide(PLUGIN_RUNTIME_KEY, runtime);
+  app.config.errorHandler = (e) => errors.push(e);
+  app.mount(el);
+  return { el, app, errors };
+}
+
+async function mount({ runtime, script = SAMPLE_SCRIPT, viewState }) {
   const result = await executeKentei({}, { action: "present", script: structuredClone(script) });
-  const props = reactive({ selectedResult: { ...result, data: { ...result.data, grading }, toolName: "manageKenteiScript", uuid: "u1" } });
+  const props = reactive({ selectedResult: { ...result, toolName: "manageKenteiScript", uuid: "u1", ...(viewState ? { viewState } : {}) } });
   const sent = [];
   const updates = [];
   const el = document.createElement("div");
@@ -73,7 +101,7 @@ test("with a runtime and a key: each answer is graded through dispatch, and the 
       return parse ? parse(raw) : raw;
     },
   };
-  const v = await mount({ grading: "jev", runtime });
+  const v = await mount({ runtime });
   assert.ok(v.$("kentei-start"), "starts on the intro screen");
   assert.match(v.el.textContent, /光合成ミニ検定/);
   assert.match(v.el.textContent, /判定モデル（JEV）/);
@@ -110,24 +138,53 @@ test("with a runtime and a key: each answer is graded through dispatch, and the 
   v.app.unmount();
 });
 
-test("without a key: answers are collected ungraded and sent for the LLM to grade", async () => {
-  const v = await mount({ grading: "llm", runtime: null });
-  assert.match(v.el.textContent, /AI が採点/);
+test("without a key on the server: the grade dispatch is refused, the View says so and does not go on", async () => {
+  const calls = [];
+  // What a host's dispatch rejects with when the plugin's server part throws MISSING_KEY_MESSAGE.
+  const runtime = { dispatch: async (args) => { calls.push(args); throw new Error(MISSING_KEY_MESSAGE); } };
+  const v = await mount({ runtime });
   await v.click("kentei-start-button");
-  for (let i = 0; i < 4; i++) {
-    await v.type(i === 1 ? "" : `答え${i + 1}`);
+  const question = v.$("kentei-question-text").textContent;
+  for (let i = 0; i < 2; i++) {
+    await v.type("酸素");
     await v.click("kentei-submit");
-    assert.match(v.$("kentei-feedback").textContent, /記録しました/);
-    await v.click("kentei-next");
+    assert.match(v.$("kentei-error").textContent, /採点の設定がありません（TYPESAFE_API_KEY）/);
+    assert.equal(v.$("kentei-feedback"), null, "no feedback without a grade");
+    assert.equal(v.$("kentei-question-text").textContent, question, "still on the same question");
+    assert.ok(!v.el.textContent.includes("採点せずに"), "no way to go on ungraded");
   }
-  assert.equal(v.sent.length, 1);
-  assert.match(v.sent[0], /answers to grade/);
-  assert.equal((v.sent[0].match(/— not graded/g) ?? []).length, 4);
+  assert.equal(calls.length, 2);
+  assert.ok(v.updates.every((u) => u.viewState.history.length === 0), "nothing recorded");
+  assert.equal(v.sent.length, 0, "nothing sent to the chat");
+  v.app.unmount();
+});
+
+test("in a host with no plugin runtime the View cannot grade: it says so and does not start", async () => {
+  const v = await mount({ runtime: null });
+  assert.match(v.$("kentei-no-grading").textContent, /採点できません/);
+  assert.equal(v.$("kentei-start-button").disabled, true);
+  await v.click("kentei-start-button");
+  assert.ok(v.$("kentei-start"), "still on the start screen");
+  assert.equal(v.$("kentei-question"), null);
+  v.app.unmount();
+});
+
+test("a viewState saved by the removed LLM-grading fallback opens as a fresh game, without errors", async () => {
+  const viewState = { phase: "question", mode: "llm", level: 3, currentId: "L2-01", history: [{ id: "L1-01", answer: "葉緑体", level: 3 }], draft: "x", titleChoice: null, sent: false };
+  const v = await mount({ runtime: correctRuntime(), viewState });
+  assert.ok(v.$("kentei-start"), "back on the start screen");
+  await v.click("kentei-start-button");
+  await v.type("酸素");
+  await v.click("kentei-submit");
+  assert.ok(v.$("kentei-feedback"), "the new game is graded by JEV");
+  assert.equal(v.updates.at(-1).viewState.history.length, 1);
+  assert.ok(v.updates.at(-1).viewState.history[0].grade);
+  assert.ok(!("mode" in v.updates.at(-1).viewState));
   v.app.unmount();
 });
 
 test("reopening restores a game in progress from viewState", async () => {
-  const v = await mount({ grading: "llm", runtime: null });
+  const v = await mount({ runtime: correctRuntime() });
   await v.click("kentei-start-button");
   await v.type("葉緑体");
   await v.click("kentei-submit");
@@ -136,12 +193,10 @@ test("reopening restores a game in progress from viewState", async () => {
   const saved = v.updates.at(-1);
   v.app.unmount();
 
-  const el = document.createElement("div");
-  document.body.appendChild(el);
-  const app = createApp({ render: () => h(plugin.viewComponent, { selectedResult: saved, sendTextMessage() {} }) });
-  app.mount(el);
+  const { el, app } = mountResult(saved, { runtime: correctRuntime() });
   await flush();
-  assert.equal(el.querySelector('[data-testid="kentei-question-text"]').textContent, SAMPLE_SCRIPT.questions[1].question);
+  const q = SAMPLE_SCRIPT.questions.find((x) => x.id === saved.viewState.currentId);
+  assert.equal(el.querySelector('[data-testid="kentei-question-text"]').textContent, q.question);
   assert.equal(el.querySelector('[data-testid="kentei-answer"]').value, "下書き");
   assert.match(el.textContent, /第 2 問/);
   app.unmount();
@@ -155,6 +210,7 @@ test("rules.timeLimitPerQuestion: the View counts down and submits what is in th
   document.body.appendChild(el);
   let current = { ...result, toolName: "manageKenteiScript", uuid: "t1" };
   const app = createApp({ render: () => h(plugin.viewComponent, { selectedResult: current, sendTextMessage() {}, onUpdateResult: (r) => (current = r) }) });
+  app.provide(PLUGIN_RUNTIME_KEY, correctRuntime());
   app.mount(el);
   await flush();
   assert.match(el.textContent, /1 問 1 秒/);
@@ -181,7 +237,7 @@ test("a grading response that arrives after another game took over the View is d
       });
     },
   };
-  const v = await mount({ grading: "jev", runtime });
+  const v = await mount({ runtime });
   await v.click("kentei-start-button");
   await v.type("酸素");
   await v.click("kentei-submit");
@@ -191,7 +247,7 @@ test("a grading response that arrives after another game took over the View is d
   const other = structuredClone(SAMPLE_SCRIPT);
   other.meta.title = "別の検定";
   const next = await executeKentei({}, { action: "present", script: other });
-  v.props.selectedResult = { ...next, data: { ...next.data, grading: "jev" }, toolName: "manageKenteiScript", uuid: "u2" };
+  v.props.selectedResult = { ...next, toolName: "manageKenteiScript", uuid: "u2" };
   await flush();
   assert.match(v.el.textContent, /別の検定/);
   await v.click("kentei-start-button");
@@ -215,7 +271,7 @@ test("a Score grade is shown out of the question's own rubric", async () => {
   script.rules.minLevel = script.rules.startLevel = script.rules.maxLevel = script.questions[0].level;
   script.rules.grades = [{ grade: "A", min: 0, title: "ok" }];
   const runtime = { dispatch: async (args, parse) => parse({ type: "Score", result: 1, probabilities: { 0: 0.1, 1: 0.8, 2: 0.1 }, credit: 0.5, points: 1.5 }) };
-  const v = await mount({ grading: "jev", runtime, script });
+  const v = await mount({ runtime, script });
   await v.click("kentei-start-button");
   await v.type("呼吸");
   await v.click("kentei-submit");
@@ -247,6 +303,7 @@ test("sendTextMessage returning false (no terminal took it) leaves the results u
         onUpdateResult: (r) => (current = r),
       }),
   });
+  app.provide(PLUGIN_RUNTIME_KEY, correctRuntime());
   app.mount(el);
   await flush();
   const $ = (id) => el.querySelector(`[data-testid="${id}"]`);
@@ -269,8 +326,8 @@ test("sendTextMessage returning false (no terminal took it) leaves the results u
   accept = true; // a void host (undefined) counts as delivered
   await click("kentei-send");
   assert.equal(tries.length, 2);
-  assert.equal(tries[1], tries[0], "the same ungraded answers are sent again");
-  assert.match(tries[1], /answers to grade/);
+  assert.equal(tries[1], tries[0], "the same results are sent again");
+  assert.match(tries[1], /— result: /);
   assert.match($("kentei-sent").textContent, /送りました/);
   assert.equal($("kentei-send"), null);
   assert.equal($("kentei-send-failed"), null);
@@ -289,7 +346,7 @@ test("unmounting while a grade is pending stops everything: no timer restart, no
       return new Promise((_, r) => (reject = r));
     },
   };
-  const v = await mount({ grading: "jev", runtime, script });
+  const v = await mount({ runtime, script });
   await v.click("kentei-start-button");
   await v.type("酸素");
   await v.click("kentei-submit");
@@ -301,54 +358,41 @@ test("unmounting while a grade is pending stops everything: no timer restart, no
   assert.equal(calls, 1, "a closed View sends no more grading requests");
 });
 
-test("a saved JEV game reopened in a host that cannot grade continues in the LLM fallback", async () => {
-  const runtime = { dispatch: async (args, parse) => parse({ type: "Choice", result: "correct", probabilities: { correct: 0.9 }, credit: 1, points: 2 }) };
-  const v = await mount({ grading: "jev", runtime });
+test("a saved game reopened in a host with no runtime stays where it was and records nothing", async () => {
+  const v = await mount({ runtime: correctRuntime() });
   await v.click("kentei-start-button");
   await v.type("酸素");
   await v.click("kentei-submit");
   await v.click("kentei-next");
   const saved = v.updates.at(-1);
-  assert.equal(saved.viewState.mode, "jev");
   v.app.unmount();
 
-  // Same result, no runtime this time (e.g. another host, or one without the plugin runtime).
-  const el = document.createElement("div");
-  document.body.appendChild(el);
+  // Same result, no runtime this time (e.g. a host without the plugin runtime).
   let current = saved;
   const sent = [];
-  const app = createApp({ render: () => h(plugin.viewComponent, { selectedResult: current, sendTextMessage: (t) => sent.push(t), onUpdateResult: (r) => (current = r) }) });
-  app.mount(el);
+  const { el, app, errors } = mountResult(saved, { sendTextMessage: (t) => sent.push(t), onUpdateResult: (r) => (current = r) });
   await flush();
-  const $ = (id) => el.querySelector(`[data-testid="${id}"]`);
-  const click = async (id) => {
-    $(id).dispatchEvent(new dom.window.MouseEvent("click", { bubbles: true }));
-    await flush();
-  };
-  await click("kentei-submit");
-  assert.match($("kentei-feedback").textContent, /記録しました/);
-  assert.equal(current.viewState.mode, "llm", "the restored game is downgraded");
-  assert.equal(current.viewState.history.length, 2, "history is kept");
-  assert.ok(current.viewState.history[0].grade, "the JEV grade already given is kept");
+  el.querySelector('[data-testid="kentei-submit"]').dispatchEvent(new dom.window.MouseEvent("click", { bubbles: true }));
+  await flush();
+  assert.deepEqual(errors.map(String), []);
+  assert.match(el.querySelector('[data-testid="kentei-error"]').textContent, /採点できません/);
+  assert.equal(el.querySelector('[data-testid="kentei-feedback"]'), null);
+  assert.equal(current.viewState.history.length, 1, "nothing recorded without a grade");
+  assert.equal(sent.length, 0);
   app.unmount();
 });
 
 test("reopening a saved timed quiz on a question restores it and starts the countdown", async () => {
   const script = structuredClone(SAMPLE_SCRIPT);
   script.rules.timeLimitPerQuestion = 30;
-  const first = await mount({ grading: "llm", runtime: null, script });
+  const first = await mount({ runtime: correctRuntime(), script });
   await first.click("kentei-start-button");
   await first.type("下書き");
   const saved = first.updates.at(-1);
   assert.equal(saved.viewState.phase, "question");
   first.app.unmount();
 
-  const el = document.createElement("div");
-  document.body.appendChild(el);
-  const errors = [];
-  const app = createApp({ render: () => h(plugin.viewComponent, { selectedResult: saved, sendTextMessage() {} }) });
-  app.config.errorHandler = (e) => errors.push(e);
-  app.mount(el);
+  const { el, app, errors } = mountResult(saved, { runtime: correctRuntime() });
   await flush();
   assert.deepEqual(errors.map(String), []);
   assert.ok(el.querySelector('[data-testid="kentei-question"]'), "the question is back");
@@ -357,31 +401,35 @@ test("reopening a saved timed quiz on a question restores it and starts the coun
   app.unmount();
 });
 
-test("after a failed grade, 採点せずに続ける records the answer that was submitted, not the draft", async () => {
-  const runtime = { dispatch: async () => { throw new Error("JEV down"); } };
-  const v = await mount({ grading: "jev", runtime });
+test("after a failed grade the player can only retry: 答える again grades the answer", async () => {
+  let fail = true;
+  const ok = correctRuntime();
+  const runtime = { calls: 0, async dispatch(args, parse) { this.calls++; if (fail) throw new Error("JEV down"); return ok.dispatch(args, parse); } };
+  const v = await mount({ runtime });
   await v.click("kentei-start-button");
-  await v.type("書きかけ");
-  // The player leaves 「書きかけ」 in the box and presses わからない; grading that fails.
-  const skip = [...v.el.querySelectorAll("button")].find((b) => b.textContent.trim() === "わからない");
-  skip.dispatchEvent(new dom.window.MouseEvent("click", { bubbles: true }));
-  await flush();
-  assert.ok(v.$("kentei-question").textContent.includes("採点できませんでした"));
-  const cont = [...v.el.querySelectorAll("button")].find((b) => b.textContent.includes("採点せずに続ける"));
-  cont.dispatchEvent(new dom.window.MouseEvent("click", { bubbles: true }));
-  await flush();
+  await v.type("酸素");
+  await v.click("kentei-submit");
+  assert.match(v.$("kentei-error").textContent, /採点できませんでした（JEV down）。もう一度「答える」を押してください。/);
+  assert.ok(![...v.el.querySelectorAll("button")].some((b) => b.textContent.includes("採点せず")), "no button to go on ungraded");
+  assert.equal(v.$("kentei-feedback"), null);
+  assert.equal(v.$("kentei-answer").value, "酸素", "the answer stays in the box");
+  fail = false;
+  await v.click("kentei-submit");
+  assert.equal(runtime.calls, 2);
+  assert.ok(v.$("kentei-feedback"), "graded on retry");
+  assert.equal(v.$("kentei-error"), null);
   const last = v.updates.at(-1).viewState;
-  assert.equal(last.mode, "llm");
   assert.equal(last.history.length, 1);
-  assert.equal(last.history[0].answer, "", "the わからない that was submitted, not the draft 「書きかけ」");
+  assert.equal(last.history[0].answer, "酸素");
+  assert.ok(last.history[0].grade);
   v.app.unmount();
 });
 
 test("two quiz cards with titleChoices on one page keep separate title choices", async () => {
   const script = structuredClone(SAMPLE_SCRIPT);
   script.rules.grades[0] = { ...script.rules.grades[0], titleChoices: ["光合成博士", "光合成名人"] };
-  const a = await mount({ grading: "llm", runtime: null, script });
-  const b = await mount({ grading: "llm", runtime: null, script });
+  const a = await mount({ runtime: correctRuntime(), script });
+  const b = await mount({ runtime: correctRuntime(), script });
   const radios = (v) => [...v.el.querySelectorAll('input[type="radio"]')];
   assert.notEqual(radios(a)[0].name, radios(b)[0].name, "each card has its own radio group");
   const pick = async (v, label) => {

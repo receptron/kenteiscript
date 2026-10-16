@@ -287,8 +287,9 @@ npm run build:plugin   # dist/: index.js (server), vue.js (View, Preview), style
 instances; Zod is bundled. `main` points at `dist/index.js` and the files sit at `dist/vue.js` and
 `dist/style.css`, the layout MulmoClaude's runtime-plugin loader expects of a packed tarball.
 
-- **MulmoTerminal:** add `kenteiscript` to `plugins/plugins.json` `packages`; register the View in
-  `src/plugins-registry.ts` wrapped in `wrapWithPluginRuntime("kentei", "presentKentei", …)` (the
+- **MulmoTerminal:** add `"kenteiscript/plugin"` to `plugins/plugins.json` `packages` (the
+  package has no `.` export, so the bare name does not import); register the View in
+  `src/plugins-registry.ts` under the same key, wrapped in `wrapWithPluginRuntime("kentei", "presentKentei", …)` (the
   View's `dispatch` must reach `/api/plugin/presentKentei`) with the style imported `?inline`; put
   `presentKentei` in the `render` group in `common/toolGroups.ts`; set `TYPESAFE_API_KEY` in the
   server's environment. The server registry already loads `definePlugin` factories.

@@ -21,6 +21,7 @@
     "startLevel": 3,
     "minLevel": 1,
     "maxLevel": 5,
+    "timeLimitPerQuestion": 20,
     "next": {
       "up": "Choice=correct、または Score=3",
       "stay": "Choice=close、または Score=2",

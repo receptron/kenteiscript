@@ -213,7 +213,7 @@ Run it after every change to criteria; nothing else can tell you a rubric grades
 
 | file | quiz | questions |
 |---|---|---|
-| `quizzes/sengoku.json` | 戦国検定 (Japan's Sengoku period) | 110 |
+| `quizzes/sengoku.json` | 戦国検定 (Japan's Sengoku period, 20 seconds per question) | 110 |
 | `quizzes/ml.json` | 機械学習検定 (machine learning) | 85 |
 | `quizzes/nihongo.json` | 日本語検定 (the Japanese language: idioms, keigo, readings, grammar, history) | 85 |
 | `quizzes/example.json` | 日本地理ミニ検定, a small format example (`hidden`, 60 seconds per question) | 15 |

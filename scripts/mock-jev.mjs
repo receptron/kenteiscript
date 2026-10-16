@@ -7,6 +7,7 @@
 // It checks the request has the shape the real API expects, and answers 400 otherwise, so a
 // change that breaks the request still fails the test.
 import { createServer } from "node:http";
+import { gradeLabels } from "../src/jev-grade.ts";
 
 const port = Number(process.argv[2] || 8788);
 
@@ -29,7 +30,7 @@ createServer((req, res) => {
     } catch {
       return reply(400, { error: "bad request" });
     }
-    const labels = q.type === "choice" ? Object.keys(q.criteria) : q.criteria.map((_, i) => String(i));
+    const labels = gradeLabels({ type: q.type === "choice" ? "Choice" : "Score", criteria: q.criteria });
     const lowest = q.type === "choice" ? "wrong" : "0";
     const probabilities = Object.fromEntries(labels.map((l) => [l, l === lowest ? 1 : 0]));
     reply(200, { answers: { grade: { probabilities } }, usage: { input_tokens: Math.ceil(body.length / 4) } });

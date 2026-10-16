@@ -9,3 +9,12 @@
 - Verified: the old reduce, copied into a harness, and `mostLikelyLabel` agree on every generated
   response whose labels are all expected; tests in `test/jev-grade.test.ts` go red when the old
   reduce is put back.
+
+## After review
+
+- `gradeLabels(q.jev)` takes the labels from the criteria JEV is asked with, not `rules.credit`;
+  `scripts/mock-jev.mjs` imports it, so the mock answers with the same labels.
+- `mostLikelyLabel` walks `labels`, so a tie goes to the first expected label (lowest Score
+  level) whatever JEV's key order. It refuses (undefined) a response with a non-finite
+  probability, or with an unexpected label at least as likely as the best expected one.
+- `noAnswerGrade`'s reduce stays: the schema requires at least one Choice label.

@@ -6,15 +6,14 @@ import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { gradeLabels, mostLikelyLabel } from "../src/jev-grade.ts";
 import { gradeAnswer } from "../src/grading.ts";
-import { defaultCredit } from "../src/game.ts";
 import { parseKenteiScript } from "../src/kentei-script.ts";
 
 const CHOICE = ["correct", "close", "wrong"];
 const SCORE = ["0", "1", "2", "3"];
 
-test("gradeLabels: Choice labels and Score levels from rules.credit", () => {
-  assert.deepEqual(gradeLabels({ credit: defaultCredit() }, "Choice"), CHOICE);
-  assert.deepEqual(gradeLabels({ credit: defaultCredit() }, "Score"), SCORE);
+test("gradeLabels: Choice labels and Score levels from the criteria JEV is asked with", () => {
+  assert.deepEqual(gradeLabels({ type: "Choice", criteria: { correct: "c", close: "n", wrong: "w" } }), CHOICE);
+  assert.deepEqual(gradeLabels({ type: "Score", criteria: ["a", "b", "c", "d"] }), SCORE);
 });
 
 test("mostLikelyLabel: the most likely expected label", () => {
@@ -23,20 +22,35 @@ test("mostLikelyLabel: the most likely expected label", () => {
   assert.equal(mostLikelyLabel({ wrong: 1 }, CHOICE), "wrong");
 });
 
-test("mostLikelyLabel: a tie goes to the first label in the response", () => {
-  assert.equal(mostLikelyLabel({ close: 0.5, correct: 0.5 }, CHOICE), "close");
+test("mostLikelyLabel: a tie goes to the first expected label, whatever the response's key order", () => {
+  assert.equal(mostLikelyLabel({ close: 0.5, correct: 0.5 }, CHOICE), "correct");
   assert.equal(mostLikelyLabel({ correct: 0.5, close: 0.5 }, CHOICE), "correct");
+  assert.equal(mostLikelyLabel({ "3": 0.5, "2": 0.5 }, SCORE), "2");
 });
 
-test("mostLikelyLabel: a label JEV was not asked for is never the grade", () => {
-  assert.equal(mostLikelyLabel({ maybe: 0.9, wrong: 0.1 }, CHOICE), "wrong");
-  assert.equal(mostLikelyLabel({ "4": 0.9, "1": 0.1 }, SCORE), "1");
+test("mostLikelyLabel: a less likely label JEV was not asked for is ignored", () => {
+  assert.equal(mostLikelyLabel({ maybe: 0.1, wrong: 0.9 }, CHOICE), "wrong");
+  assert.equal(mostLikelyLabel({ "4": 0.1, "1": 0.9 }, SCORE), "1");
+});
+
+test("mostLikelyLabel: undefined when a label JEV was not asked for is as likely as the grade", () => {
+  assert.equal(mostLikelyLabel({ maybe: 0.9, wrong: 0.1 }, CHOICE), undefined);
+  assert.equal(mostLikelyLabel({ Correct: 0.5, wrong: 0.5 }, CHOICE), undefined);
+  assert.equal(mostLikelyLabel({ "4": 0.9, "1": 0.1 }, SCORE), undefined);
+});
+
+test("mostLikelyLabel: undefined when a probability is not a finite number", () => {
+  assert.equal(mostLikelyLabel({ correct: "abc", wrong: 0.9 }, CHOICE), undefined);
+  assert.equal(mostLikelyLabel({ correct: true, wrong: 0.5 }, CHOICE), undefined);
+  assert.equal(mostLikelyLabel({ correct: null, wrong: 0.5 }, CHOICE), undefined);
+  assert.equal(mostLikelyLabel({ correct: NaN, wrong: 0.5 }, CHOICE), undefined);
 });
 
 test("mostLikelyLabel: undefined when JEV gave none of the labels", () => {
   assert.equal(mostLikelyLabel({}, CHOICE), undefined);
   assert.equal(mostLikelyLabel({ maybe: 1 }, CHOICE), undefined);
   assert.equal(mostLikelyLabel({ correct: 1 }, []), undefined);
+  assert.equal(mostLikelyLabel({ constructor: 1 }, ["constructor"]), "constructor");
 });
 
 const root = new URL("..", import.meta.url).pathname;
@@ -44,7 +58,7 @@ const quiz = parseKenteiScript(JSON.parse(readFileSync(join(root, "quizzes", "ex
 const choice = quiz.questions.find((q) => q.jev.type === "Choice");
 const score = quiz.questions.find((q) => q.jev.type === "Score");
 
-async function gradeWith(probabilities: Record<string, number>, type: "Choice" | "Score") {
+async function gradeWith(probabilities: Record<string, unknown>, type: "Choice" | "Score") {
   const q = type === "Choice" ? choice : score;
   assert.ok(q, `example.json has a ${type} question`);
   const realFetch = globalThis.fetch;
@@ -56,16 +70,18 @@ async function gradeWith(probabilities: Record<string, number>, type: "Choice" |
   }
 }
 
-test("gradeAnswer: an empty or unknown-only response is an error, not a grade", async () => {
+test("gradeAnswer: a response with no usable grade is an error, not a grade", async () => {
   for (const type of ["Choice", "Score"] as const) {
-    await assert.rejects(gradeWith({}, type), /^Error: JEV gave none of the grades/);
-    await assert.rejects(gradeWith({ maybe: 1 }, type), /^Error: JEV gave none of the grades/);
+    for (const probabilities of [{}, { maybe: 1 }, { maybe: 0.9, wrong: 0.1, "0": 0.1 }]) {
+      await assert.rejects(gradeWith(probabilities, type), /^Error: JEV gave no usable grade/);
+    }
   }
+  await assert.rejects(gradeWith({ correct: "abc", close: 0, wrong: 0.9 }, "Choice"), /^Error: JEV gave no usable grade/);
 });
 
-test("gradeAnswer: grades from the expected labels only", async () => {
-  const c = await gradeWith({ maybe: 0.9, correct: 0.1 }, "Choice");
+test("gradeAnswer: grades from the expected labels when they outrank the rest", async () => {
+  const c = await gradeWith({ maybe: 0.1, correct: 0.9 }, "Choice");
   assert.equal(c.result, "correct");
-  const s = await gradeWith({ "9": 0.9, "2": 0.1 }, "Score");
+  const s = await gradeWith({ "9": 0.1, "2": 0.9 }, "Score");
   assert.equal(s.result, 2);
 });

@@ -24,7 +24,7 @@ export const DEFAULT_MODEL = "jev-latest";
  */
 export function noAnswerGrade(quiz: KenteiScript, q: Question): GradeResult {
   const isChoice = q.jev.type === "Choice";
-  const labels = gradeLabels(quiz.rules, q.jev.type);
+  const labels = gradeLabels(q.jev);
   const result = isChoice ? labels.reduce((a, b) => (creditFor(quiz.rules, "Choice", b) < creditFor(quiz.rules, "Choice", a) ? b : a)) : "0";
   const credit = creditFor(quiz.rules, q.jev.type, result);
   return {
@@ -68,10 +68,10 @@ export async function gradeAnswer(
     usage?: { input_tokens: number };
   };
   const probs = data.answers.grade.probabilities;
-  // The most likely label (Choice) or level (Score) is the grade.
-  const labels = gradeLabels(quiz.rules, q.jev.type);
+  // The most likely label (Choice) or level (Score) that JEV was asked for is the grade.
+  const labels = gradeLabels(q.jev);
   const result = mostLikelyLabel(probs, labels);
-  if (result === undefined) throw new Error(`JEV gave none of the grades ${labels.join(", ")}: ${JSON.stringify(probs).slice(0, 200)}`);
+  if (result === undefined) throw new Error(`JEV gave no usable grade of ${labels.join(", ")}: ${JSON.stringify(probs).slice(0, 200)}`);
   const credit = creditFor(quiz.rules, q.jev.type, result);
   return {
     type: q.jev.type,

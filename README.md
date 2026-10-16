@@ -56,9 +56,9 @@ What exams and hiring tests need, and the language and MulmoKentei don't have ye
 Already there: **a time limit per question**, kept by the view (`rules.timeLimitPerQuestion`,
 [#1](https://github.com/receptron/kenteiscript/issues/1)). There is no limit for a whole test.
 
-In chat, a KenteiScript can also be written by the LLM on the spot and taken right there:
-[#2](https://github.com/receptron/kenteiscript/issues/2) proposes a gui-chat-protocol plugin for
-MulmoClaude and MulmoTerminal that shows the quiz in a view and sends the results back to the LLM.
+In chat, a KenteiScript can also be written by the LLM on the spot and taken right there: the
+**presentKentei** plugin for MulmoClaude and MulmoTerminal shows the quiz in a view and sends the
+results back to the LLM (see [In chat](#in-chat-the-presentkentei-plugin)).
 
 For any decision that matters to a person — a grade on a report card, a job offer — use the model's
 grades as a first pass that a human reviews, not as the final word.
@@ -79,7 +79,7 @@ This repository holds:
 > 検定だけでなく、授業のあとの理解度の確認、期末試験、会社の入社試験などにも使えるように育てていきます。理解度の確認は今の
 > 仕組みで使えます。試験に使うには、全員に同じ問題を出す固定モード、受験者ごとの結果、採点の見直し（確信度の低い採点に印を
 > つける）が必要です（今後の課題）。1 問ごとの時間制限（#1）は使えます。
-> MulmoClaude や MulmoTerminal の中で、LLM がその場で作った KenteiScript に答え、結果を LLM に返すプラグインも提案中です（#2）。人の評価に関わる判断では、モデルの採点を最終結果とせず、人が見直してください。
+> MulmoClaude や MulmoTerminal の中で、LLM がその場で作った KenteiScript に答え、結果を LLM に返すプラグイン（presentKentei）もあります（下の「In chat」）。人の評価に関わる判断では、モデルの採点を最終結果とせず、人が見直してください。
 
 ## The format
 
@@ -143,8 +143,10 @@ definition, with a comment on every field.
 ### How a KenteiScript is played
 
 - A game asks `questionsPerGame` questions, starting at `startLevel`.
-- A full-credit answer (`correct`, or the top Score level) moves the next question **up** a
-  level; half credit (`close`, or level 2) keeps the level; anything else moves it **down**.
+- A full-credit answer (credit 1: `correct`, or the top Score level) moves the next question
+  **up** a level; at least half credit (`close`, or level 2) keeps the level; anything less moves
+  it **down**. When a level has no unused question left, the next one comes from the nearest level
+  that has one.
 - With `timeLimitPerQuestion`, each question has that many seconds. The view keeps the time, not
   the server: it shows the time left (and the limit on the start screen), and when time is up it
   submits what is in the answer box, as if the player had pressed 答える (an empty box is no
@@ -159,7 +161,8 @@ definition, with a comment on every field.
 
 The schema is strict, and it checks the rules that span fields: Choice labels match
 `rules.credit.Choice`, Score rubrics have as many levels as `rules.credit.Score`, ids are unique,
-levels are in range, grades go from highest to lowest and end at `min: 0`. An unknown key is an
+levels are in range, grades go from highest to lowest and end at `min: 0`, and
+`questionsPerGame` is no more than the number of questions. An unknown key is an
 error, so a typo such as `explaination` is caught instead of silently ignored.
 
 ```sh
@@ -219,6 +222,83 @@ Run it after every change to criteria; nothing else can tell you a rubric grades
 | `quizzes/example.json` | 日本地理ミニ検定, a small format example (`hidden`, 60 seconds per question) | 15 |
 
 Each has a `.tests.json` with sample answers that JEV grades as expected.
+
+## In chat: the presentKentei plugin
+
+In MulmoClaude and MulmoTerminal, the LLM can write a KenteiScript in the conversation (after
+explaining something, for a practice test) and the user takes it right there:
+
+```
+LLM ── presentKentei(KenteiScript) ──► schema check ──► View in the chat ◄──► user answers
+                                            │                  │ each answer: runtime.dispatch
+                                  errors back to the LLM       ▼
+                                                     host server: JEV (TYPESAFE_API_KEY)
+LLM ◄── sendTextMessage(results, each grade with its probability) ◄── View
+```
+
+It is a [gui-chat-protocol](https://www.npmjs.com/package/gui-chat-protocol) plugin built the same
+way as presentForm (`@mulmoclaude/form-plugin`), in `src/plugin/`:
+
+- **The tool.** Its arguments are one KenteiScript; `parameters` is the Zod schema turned into
+  JSON Schema (`z.toJSONSchema`), and the schema's `.describe()`s are the field descriptions the
+  LLM reads. A script the schema rejects comes back with every error, so the LLM can fix it and
+  call again. A valid one returns at once with `instructions` to wait for the results. The tool's
+  `prompt` (system prompt) says when to use it and repeats the criteria-writing rules below.
+- **The View** plays the script with the same rules as MulmoKentei (`src/game.ts`): adaptive levels,
+  the hint for written and open questions, the grade and explanation after each answer,
+  `timeLimitPerQuestion`, and the grade and title at the end. Progress is saved with
+  `updateResult({ viewState })`, so reopening the chat resumes the game. The criteria are in the
+  View's data (it sends them to the server for grading) but are never displayed.
+- **Grading.** The JEV key stays on the host's server. The View sends
+  `{ kind: "grade", script, questionId, answer }` through the host's plugin dispatch
+  (`useRuntime().dispatch`); the plugin's server part grades it with `src/grading.ts`, reading
+  `TYPESAFE_API_KEY` (and the optional `JEV_MODEL`, `JEV_URL`) from the host's environment. Without
+  a key, or in a host that gives the View no runtime, the View collects the answers ungraded, asks
+  them in the script's order (there is no grade to adapt by), and the LLM grades them from the
+  results. If a grading call fails, the player can retry or go on ungraded.
+- **The results** arrive as the user's next message:
+
+  ```
+  **光合成ミニ検定 — result: C 「これから芽が出る人」 (4.5 / 11 points)**
+
+  - Q1 [L2-01] ★2 「光合成でつくられる気体は何ですか？」 — answer: 「酸素」 — correct (0.93)
+  - Q2 [L3-01] ★3 「夜になると、…なぜでしょうか？」 — answer: 「光がないので…」 — 2/3 (0.71)
+  - Q3 [L2-02] ★2 「光合成に必要な材料を二つ答えてください。」 — answer: (no answer) — wrong (0.99)
+  ```
+
+  Each line carries the question id, the grade (a Choice label, or level/top for Score) and the
+  probability JEV gave it, so the LLM can tell a confident grade from a borderline one. Ungraded
+  answers are marked `not graded`, under a header that asks the LLM to grade them against the
+  criteria and `rules.grades`.
+
+### Adding it to a host
+
+```sh
+npm run build:plugin   # dist/: index.js (server), vue.js (View, Preview), style.css, types/
+```
+
+| export | file | what |
+|---|---|---|
+| `kenteiscript/plugin` | `dist/index.js` | default export: a `definePlugin` factory whose `presentKentei` handler takes both the LLM's tool call and the View's grade dispatch; named exports: `TOOL_DEFINITION`, `executeKentei`, `pluginCore`, … |
+| `kenteiscript/plugin/vue` | `dist/vue.js` | `plugin` (`ToolPlugin`: core + `viewComponent` + `previewComponent` + `samples` + `systemPrompt`) |
+| `kenteiscript/plugin/style.css` | `dist/style.css` | the View's styles (scoped; inject it into the host's plugin frame) |
+
+`vue` and `gui-chat-protocol` stay external (peer dependencies), so the plugin shares the host's
+instances; Zod is bundled. `main` points at `dist/index.js` and the files sit at `dist/vue.js` and
+`dist/style.css`, the layout MulmoClaude's runtime-plugin loader expects of a packed tarball.
+
+- **MulmoTerminal:** add `kenteiscript` to `plugins/plugins.json` `packages`; register the View in
+  `src/plugins-registry.ts` wrapped in `wrapWithPluginRuntime("kentei", "presentKentei", …)` (the
+  View's `dispatch` must reach `/api/plugin/presentKentei`) with the style imported `?inline`; put
+  `presentKentei` in the `render` group in `common/toolGroups.ts`; set `TYPESAFE_API_KEY` in the
+  server's environment. The server registry already loads `definePlugin` factories.
+- **MulmoClaude:** either install it as a runtime plugin (the factory is dispatched through
+  `/api/plugins/runtime/<pkg>/dispatch`, and the View gets the scoped runtime), or add a thin
+  built-in adapter like `src/plugins/presentForm/` whose dispatch endpoint calls the factory's
+  handler, with the View wrapped by `wrapWithScope`.
+
+The package is still `"private": true`: until it is published, a host depends on it from a local
+path or a packed tarball (`npm pack` after `npm run build:plugin`).
 
 ## MulmoKentei: the sample service
 
@@ -296,7 +376,9 @@ browser ── GET  /api/quizzes       titles for the picker
 ### Tests and CI
 
 ```sh
-npm run typecheck
+npm run typecheck             # the Worker, the scripts and the plugin (vue-tsc)
+npm run test:unit             # the game rules, the plugin's execute, state, results and server grading
+npm run build:plugin && npm run test:plugin   # the plugin View, mounted from dist/ in jsdom
 npm test                      # end-to-end check of a running server (start `npm run dev` first)
 npm test -- http://localhost:8787 example     # another quiz, or another server
 ```
@@ -305,8 +387,8 @@ npm test -- http://localhost:8787 example     # another quiz, or another server
 the cheating guards (no grading without a game, no grading the same question twice, no recording
 an unfinished game or the same game twice) and plays one full game.
 
-`.github/workflows/ci.yml` runs on every push and pull request: typecheck, `check:quizzes`, and
-`npm test` for every quiz against `wrangler dev` with a local D1. CI has no JEV key, so
+`.github/workflows/ci.yml` runs on every push and pull request: typecheck, `check:quizzes`, the
+unit tests, the plugin build and View test, and `npm test` for every quiz against `wrangler dev` with a local D1. CI has no JEV key, so
 `scripts/mock-jev.mjs` stands in for JEV (the Worker's `JEV_URL` var points at it; it grades every
 answer as the lowest grade and rejects a malformed request). On pushes to `main`, if the
 repository has a `TYPESAFE_API_KEY` secret, a second job runs `test:grading` for every quiz with
@@ -317,9 +399,13 @@ the real JEV.
 ```
 src/kentei-script.ts  the KenteiScript format, as a Zod schema; the types are inferred from it
 src/grading.ts        the JEV call; shared with the Node scripts
+src/game.ts           the game rules (levels, picking, points, grades), shared by every runtime
+src/plugin/           the presentKentei chat plugin: core/, vue/, server.ts (built to dist/)
 quizzes/*.json        sample KenteiScripts; *.tests.json are their sample answers
 src/index.ts          MulmoKentei Worker: routes, games, results (D1)
 public/index.html     MulmoKentei page; all quiz-specific text comes from the KenteiScript's meta
+public/game.js        the page's copy of src/game.ts (generated by scripts/gen-game.mjs, git-ignored)
+test/                 unit tests (node --test) and the plugin View test
 schema.sql            MulmoKentei D1 tables
 scripts/              setup, quiz bundling and checks, tests, mock JEV
 .github/workflows/    CI

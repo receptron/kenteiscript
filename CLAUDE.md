@@ -23,6 +23,18 @@ changes with those uses in mind, and do not claim them as supported until they a
   model (`src/grading.ts`).
 - `src/grading.ts` is shared with the Node scripts, which import the `.ts` file directly through
   Node's type stripping. Keep it free of Worker and Node APIs. Node 22.18+ is required for that.
+- The game rules (level moves, credit and points, question picking, grades, max points) are
+  `src/game.ts`, pure functions shared by the Worker, the chat plugin's View and the page. The page
+  has no build step, so it imports `/game.js`, which `scripts/gen-game.mjs` writes from
+  `src/game.ts` (types stripped) in the wrangler build step and `npm run typecheck`; it is
+  git-ignored. Change the rules in `src/game.ts` only, keep it erasable TypeScript (no enums), and
+  never edit `public/game.js`.
+- The **presentKentei chat plugin** lives in `src/plugin/` (README, *In chat*): `core/`
+  (host-neutral: tool definition, execute, game state, results message), `vue/` (View, Preview),
+  `server.ts` (the `definePlugin` factory: tool call + the View's `{ kind: "grade" }` dispatch) and
+  `grade.ts` (server-side JEV grading with the host's `TYPESAFE_API_KEY`). `npm run build:plugin`
+  builds it with vite into `dist/` (git-ignored). It may use Zod and Vue; the Worker must not, so
+  nothing under `src/plugin/` is imported from `src/index.ts`, `src/grading.ts` or `src/game.ts`.
 - Package manager: **npm** (package-lock.json).
 - The npm package name is **`kenteiscript`** (npm names must be lowercase, so not `KenteiScript`),
   kept for a possible future publish. `"private": true` stays until that is decided, so nothing
@@ -42,8 +54,10 @@ TypeScript types (`KenteiScript`, `Question`, …) are `z.infer`red from it, and
 deploy, so a bad file fails the build, not a game. Consequences:
 
 - **A new field starts in the schema.** Objects are `strictObject`, so a key the schema does not
-  list is an error — that is what catches typos like `explaination`. Add the field with a doc
-  comment there, and the types follow.
+  list is an error — that is what catches typos like `explaination`. Add the field with a
+  `.describe()` there, and the types follow. The description is also what an LLM reads when it
+  writes a KenteiScript through presentKentei (the tool's `parameters` are `z.toJSONSchema` of the
+  schema), so write it for that reader; `test/plugin.test.ts` fails if a property has none.
 - Rules that span fields (labels match `rules.credit`, unique ids, levels in range, grades
   descending) live in the schema's `superRefine`. Zod skips refinements while basic errors remain,
   so a file with a typo shows its cross-field errors only after the typo is fixed.
@@ -55,7 +69,14 @@ deploy, so a bad file fails the build, not a game. Consequences:
   schema.
 
 ## Run after changes
-- `npm run typecheck` — regenerates `src/quizzes.gen.ts` and the Worker types, then runs `tsc`.
+- `npm run typecheck` — regenerates `src/quizzes.gen.ts`, `public/game.js` and the Worker types,
+  then runs `tsc` (Worker, scripts, tests) and `vue-tsc -p tsconfig.plugin.json` (the plugin,
+  with stricter flags).
+- `npm run test:unit` — the game rules and the plugin core (`node --test test/*.test.ts`). No
+  server, no key.
+- `npm run build:plugin && npm run test:plugin` — after any change under `src/plugin/`: builds
+  `dist/` and mounts the built View in jsdom. Check that `npx wrangler deploy --dry-run --outdir
+  <dir>` still bundles no Zod or Vue after touching anything the Worker imports.
 - `npm test` — end-to-end check of a **running** server, so start `npm run dev` first. It needs
   no flags for the default quiz; `npm test -- http://localhost:8787 <quiz>` for another one.
 - `npm run check:quizzes` — the schema plus the authoring conventions, for every KenteiScript. No
@@ -64,8 +85,8 @@ deploy, so a bad file fails the build, not a game. Consequences:
   real (pennies), prints the probability of every grade, and is the only check that a rubric
   grades the way you meant. `typecheck` and `npm test` pass with a rubric that grades nonsense.
 
-CI (`.github/workflows/ci.yml`) runs typecheck, `check:quizzes` and `npm test` for every quiz on
-each push and PR. It has no JEV key: `scripts/mock-jev.mjs` stands in, reached through the Worker's
+CI (`.github/workflows/ci.yml`) runs typecheck, `check:quizzes`, the unit tests, the plugin build
+and View test, and `npm test` for every quiz on each push and PR. It has no JEV key: `scripts/mock-jev.mjs` stands in, reached through the Worker's
 `JEV_URL` var (`wrangler dev --var JEV_URL:…`), and grades everything as the lowest grade while
 rejecting a malformed request. So CI proves the plumbing, never the rubrics — `test:grading` with
 the real JEV runs in CI only on pushes to `main` when the repo has a `TYPESAFE_API_KEY` secret.
@@ -190,6 +211,11 @@ rewriting an identical file makes `wrangler dev` see a change in `src/` and rebu
 explanations arrive only with a grade. `npm test` fails if criteria leak. The score is computed
 on the server from its own `answers` rows; the page never reports points. Keep both when adding
 fields: a new field on a question is private unless it is added to `publicQuiz()` on purpose.
+
+The chat plugin is different by design: its View receives the whole script, criteria included,
+because the LLM wrote it in the user's own chat and the View has to send it to the server for
+grading. It still never *displays* criteria or an explanation before the answer is graded (the
+View test checks this). The JEV key stays on the host's server in both runtimes.
 
 ## Secrets and pushing
 

@@ -1,0 +1,82 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+env:
+  WRANGLER_SEND_METRICS: "false"
+
+jobs:
+  # Everything that needs no API key: types, quiz rules, and the full API test against
+  # `wrangler dev` with a local D1, graded by scripts/mock-jev.mjs instead of the real JEV.
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm run typecheck
+      - run: npm run check:quizzes
+
+      - name: Set up local D1
+        run: |
+          echo "TYPESAFE_API_KEY=ci-dummy-key" > .env
+          npm run setup
+
+      - name: Start mock JEV and wrangler dev
+        run: |
+          node scripts/mock-jev.mjs 8788 > mock-jev.log 2>&1 &
+          npx wrangler dev --port 8787 --var JEV_URL:http://127.0.0.1:8788/v1/systemone > wrangler.log 2>&1 &
+          for i in $(seq 1 60); do
+            curl -sf http://localhost:8787/api/quizzes > /dev/null && exit 0
+            sleep 2
+          done
+          cat wrangler.log
+          exit 1
+
+      - name: API test, every quiz
+        run: |
+          for quiz in $(ls quizzes | grep -v '\.tests\.json$' | sed 's/\.json$//'); do
+            echo "== $quiz"
+            npm test -- http://localhost:8787 "$quiz"
+          done
+
+      - name: Server logs
+        if: failure()
+        run: cat wrangler.log mock-jev.log
+
+  # The sample answers graded by the real JEV. Runs only on pushes to main, and only when the
+  # repository has a TYPESAFE_API_KEY secret (pull requests from forks never see secrets).
+  grading:
+    if: github.event_name == 'push'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      TYPESAFE_API_KEY: ${{ secrets.TYPESAFE_API_KEY }}
+    steps:
+      - name: Skip without an API key
+        if: env.TYPESAFE_API_KEY == ''
+        run: echo "::notice::No TYPESAFE_API_KEY secret; skipping the JEV grading test."
+      - uses: actions/checkout@v4
+        if: env.TYPESAFE_API_KEY != ''
+      - uses: actions/setup-node@v4
+        if: env.TYPESAFE_API_KEY != ''
+        with:
+          node-version: 22
+          cache: npm
+      - name: Grade the sample answers of every quiz
+        if: env.TYPESAFE_API_KEY != ''
+        run: |
+          for quiz in $(ls quizzes | grep '\.tests\.json$' | sed 's/\.tests\.json$//'); do
+            echo "== $quiz"
+            node scripts/test-grading.ts "$quiz"
+          done

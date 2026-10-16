@@ -10,6 +10,8 @@
     "dev": "wrangler dev",
     "test": "node scripts/test-api.mjs",
     "test:grading": "node scripts/test-grading.ts",
+    "check:quizzes": "node scripts/check-quizzes.mjs",
+    "mock:jev": "node scripts/mock-jev.mjs",
     "typecheck": "node scripts/gen-quizzes.mjs && wrangler types && tsc --noEmit",
     "setup:cloudflare": "node scripts/setup.mjs --remote",
     "deploy": "node scripts/remote.mjs deploy",
@@ -21,7 +23,8 @@
   "devDependencies": {
     "@types/node": "^24.19.2",
     "typescript": "^5.9.3",
-    "wrangler": "^4.151.0"
+    "wrangler": "^4.151.0",
+    "zod": "4.6.5"
   },
   "allowScripts": {
     "esbuild@0.28.2": true,

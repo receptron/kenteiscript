@@ -1,13 +1,15 @@
 // MulmoKentei Worker: serves the quiz API, grades answers with JEV, and keeps
 // games and results in D1. The page is served from public/ as static assets.
-import { gradeAnswer, gradeFor, publicQuiz, type Quiz } from "./grading.ts";
-import { quizzes } from "./quizzes.gen.ts"; // generated from quizzes/*.json by scripts/gen-quizzes.mjs
+import { gradeAnswer, gradeFor, publicQuiz } from "./grading.ts";
+import type { KenteiScript } from "./kentei-script.ts";
+import { quizzes } from "./quizzes.gen.ts"; // every KenteiScript in quizzes/, bundled by scripts/gen-quizzes.mjs
 
 interface Env {
   DB: D1Database;
   TYPESAFE_API_KEY: string;
   QUIZ?: string; // default quiz id (file name in quizzes/ without .json)
   JEV_MODEL?: string;
+  JEV_URL?: string; // unset in production; CI points it at scripts/mock-jev.mjs
 }
 
 const MAX_ANSWER_CHARS = 800; // longer answers are cut before grading
@@ -60,7 +62,7 @@ async function grade(env: Env, body: Record<string, unknown>) {
   if (!game || Date.now() - game.started > GAME_TTL_MS || !(game.quiz in quizzes)) {
     return json(400, { error: "挑戦の期限が切れました。最初からやり直してください" });
   }
-  const quiz: Quiz = quizzes[game.quiz];
+  const quiz: KenteiScript = quizzes[game.quiz];
   const q = quiz.questions.find((x) => x.id === qid);
   if (!q) return json(400, { error: "unknown question" });
   if (game.done || game.n >= quiz.rules.questionsPerGame) return json(400, { error: "この問題はもう採点済みです" });
@@ -68,7 +70,7 @@ async function grade(env: Env, body: Record<string, unknown>) {
   const answer = String(body.answer ?? "").trim().slice(0, MAX_ANSWER_CHARS) || "（無回答）";
   let result;
   try {
-    result = await gradeAnswer(quiz, q, answer, { apiKey: env.TYPESAFE_API_KEY, model: env.JEV_MODEL });
+    result = await gradeAnswer(quiz, q, answer, { apiKey: env.TYPESAFE_API_KEY, model: env.JEV_MODEL, url: env.JEV_URL });
   } catch (e) {
     console.error(e);
     return json(502, { error: "採点に失敗しました" });

@@ -1,27 +1,9 @@
 [
- {
-  "id": "G1-01",
-  "answer": "ふじさん",
-  "expect": "correct"
- },
- {
-  "id": "G2-01",
-  "answer": "利根川",
-  "expect": "close"
- },
- {
-  "id": "G3-02",
-  "answer": "親潮",
-  "expect": "wrong"
- },
- {
-  "id": "G3-03",
-  "answer": "寒いから。",
-  "expect": 1
- },
- {
-  "id": "G3-03",
-  "answer": "冬の北西の季節風が日本海の上で水分を含み、日本海側の山脈にぶつかって雪を降らせるから。太平洋側は山を越えた乾いた風になるので晴れが多い。",
-  "expect": 3
- }
+  {"id": "G1-01", "answer": "ふじさん", "expect": "correct"},
+  {"id": "G2-01", "answer": "利根川", "expect": "close"},
+  {"id": "G3-02", "answer": "親潮", "expect": "wrong"},
+  {"id": "G3-03", "answer": "寒いから。", "expect": 1},
+  {"id": "G3-03", "answer": "冬の北西の季節風が日本海の上で水分を含み、日本海側の山脈にぶつかって雪を降らせるから。太平洋側は山を越えた乾いた風になるので晴れが多い。", "expect": 3},
+  {"id": "G1-05", "answer": "岩手県", "expect": "wrong"},
+  {"id": "G3-05", "answer": "南鳥島", "expect": "correct"}
 ]

@@ -91,6 +91,11 @@ export default tseslint.config(
     rules: {
       "@typescript-eslint/no-explicit-any": "error",
       "@typescript-eslint/no-non-null-assertion": "error",
+      // node:test runs a top-level test() itself; its promise is not the caller's to await.
+      "@typescript-eslint/no-floating-promises": [
+        "error",
+        { allowForKnownSafeCalls: [{ from: "package", name: ["test", "describe", "it"], package: "node:test" }] },
+      ],
       "@typescript-eslint/no-unused-vars": ["error", { argsIgnorePattern: "^__" }],
       // A private field nothing reassigns is a constant, and saying so stops the next reader
       // looking for the write that never happens.

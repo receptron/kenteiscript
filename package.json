@@ -12,7 +12,8 @@
     "test:grading": "node scripts/test-grading.ts",
     "typecheck": "node scripts/gen-quizzes.mjs && wrangler types && tsc --noEmit",
     "setup:cloudflare": "node scripts/setup.mjs --remote",
-    "deploy": "wrangler deploy"
+    "deploy": "node scripts/remote.mjs deploy",
+    "remote": "node scripts/remote.mjs"
   },
   "engines": {
     "node": ">=22.18"

@@ -15,7 +15,8 @@
     {
       "binding": "DB",
       "database_name": "mulmo-kentei",
-      // Filled in by `npm run setup:cloudflare`. Any value works for local development.
+      // Placeholder, used as is for local development. The real id is CLOUDFLARE_D1_DATABASE_ID in .env
+      // (written by `npm run setup:cloudflare`); `npm run deploy` puts it into wrangler.remote.jsonc.
       "database_id": "00000000-0000-0000-0000-000000000000"
     }
   ]

@@ -3,6 +3,7 @@
 .env.*
 !.env.example
 .dev.vars
+wrangler.remote.jsonc
 
 # dependencies and build output
 node_modules/

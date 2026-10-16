@@ -154,9 +154,19 @@ These come from testing the 戦国検定 quiz against JEV:
 You need a Cloudflare account. Run `npx wrangler login` once. Then:
 
 ```sh
-npm run setup:cloudflare      # once: creates the D1 database, records its id in wrangler.jsonc,
+npm run setup:cloudflare      # once: creates the D1 database, records its id in .env,
                               # creates the tables, deploys, and uploads TYPESAFE_API_KEY as a secret
 npm run deploy                # every time after that
+```
+
+Your account's ids stay out of the repo. `wrangler.jsonc` has a placeholder D1 id, which local
+development uses as is; the real one is `CLOUDFLARE_D1_DATABASE_ID` in `.env`. Commands that talk
+to Cloudflare go through `scripts/remote.mjs`, which writes `wrangler.remote.jsonc` (git-ignored)
+with that id and runs wrangler with it. For other wrangler commands against your deployment:
+
+```sh
+npm run remote -- d1 execute mulmo-kentei --remote --command "SELECT grade, COUNT(*) FROM plays GROUP BY grade"
+npm run remote -- tail        # live logs
 ```
 
 The site is then at `https://mulmo-kentei.<your-subdomain>.workers.dev`. To use a different

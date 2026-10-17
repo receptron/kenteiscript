@@ -14,14 +14,6 @@
     "minLevel": 1,
     "maxLevel": 3,
     "timeLimitPerQuestion": 60,
-    "credit": {
-      "Choice": {
-        "correct": 1,
-        "close": 0.5,
-        "wrong": 0
-      },
-      "Score": [0, 0, 0.5, 1]
-    },
     "points": "1問の得点 = レベル × credit。",
     "grades": [
       {

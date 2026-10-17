@@ -107,7 +107,7 @@ definition, with a comment on every field.
     "credit": {
       // optional: these are the defaults
       "Choice": { "correct": 1, "close": 0.5, "wrong": 0 },
-      "Score": [0, 0, 0.5, 1], // credit for levels 0..3
+      "Score": [0, 0.3333, 0.6667, 1], // credit for levels 0..3 (the default is exactly 0, 1/3, 2/3, 1)
     },
     "grades": [
       // highest first; points = level × credit, summed

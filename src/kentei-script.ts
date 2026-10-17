@@ -94,11 +94,11 @@ export const Rules = z
           .describe(
             'Credit per Choice label, usually {"correct": 1, "close": 0.5, "wrong": 0}. Credit 1 moves the next question up a level, at least 0.5 keeps the level, less moves it down.',
           ),
-        Score: z.array(z.number().min(0).max(1)).min(2).describe("Credit per Score level, lowest first, usually [0, 0, 0.5, 1]. Same level moves as Choice."),
+        Score: z.array(z.number().min(0).max(1)).min(2).describe("Credit per Score level, lowest first, usually [0, 1/3, 2/3, 1]. Same level moves as Choice."),
       })
       .default(defaultCredit)
       .describe(
-        'How much each grade of an answer is worth. Usually omit it: the default is {"Choice": {"correct": 1, "close": 0.5, "wrong": 0}, "Score": [0, 0, 0.5, 1]}, so Choice criteria have the labels correct, close, wrong and Score criteria have 4 levels (0-3).',
+        'How much each grade of an answer is worth. Usually omit it: the default is {"Choice": {"correct": 1, "close": 0.5, "wrong": 0}, "Score": [0, 1/3, 2/3, 1]}, so Choice criteria have the labels correct, close, wrong and Score criteria have 4 levels (0-3).',
       ),
     grades: z
       .array(Grade)

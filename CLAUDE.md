@@ -91,7 +91,7 @@ deploy, so a bad file fails the build, not a game. Consequences:
   chat plugin takes one written inside `jev` out and uses it when the question's own is missing
   or blank (`repairExplanations`), its only repair.
 - `rules.credit` is optional; the schema's default (and `withDefaultCredit` in `src/game.ts`, which
-  the Worker applies to the bundled quizzes) is Choice correct/close/wrong, Score [0, 0, 0.5, 1].
+  the Worker applies to the bundled quizzes) is Choice correct/close/wrong, Score [0, 1/3, 2/3, 1]. Points are rounded to one decimal (`roundPoints`).
 
 ## Run after changes
 

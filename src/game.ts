@@ -14,9 +14,12 @@ import type { Grade, Question, Rules } from "./kentei-script.ts";
 /** The kind of grade an answer got: a Choice label or a Score level. */
 export type GradeType = "Choice" | "Score";
 
-/** rules.credit when a script leaves it out: three Choice labels, four Score levels (0-3). */
+/**
+ * rules.credit when a script leaves it out: three Choice labels, and four Score levels (0-3) worth
+ * their share of the top level, so a 2/3 answer to a ★3 question earns 2 points.
+ */
 export function defaultCredit(): Rules["credit"] {
-  return { Choice: { correct: 1, close: 0.5, wrong: 0 }, Score: [0, 0, 0.5, 1] };
+  return { Choice: { correct: 1, close: 0.5, wrong: 0 }, Score: [0, 1 / 3, 2 / 3, 1] };
 }
 
 /** The script with rules.credit filled in when it was left out, as the Zod schema's default does. */
@@ -31,9 +34,17 @@ export function creditFor(rules: Pick<Rules, "credit">, type: GradeType, result:
   return typeof credit === "number" ? credit : 0;
 }
 
-/** Points for an answer: level × credit. */
+/**
+ * Points rounded to one decimal. Thirds of a level (5 × 2/3) and sums of such points carry
+ * floating-point noise (5.999999…), which would show as 6.0 and miss a grade's min of 6.
+ */
+export function roundPoints(points: number): number {
+  return Math.round(points * 10) / 10;
+}
+
+/** Points for an answer: level × credit, to one decimal. */
 export function pointsFor(level: number, credit: number): number {
-  return level * credit;
+  return roundPoints(level * credit);
 }
 
 /**
@@ -73,7 +84,8 @@ export function pickQuestion<Q extends Pick<Question, "id" | "level">>(
 
 /** The grade a total earns: the first in rules.grades (highest first) whose min it reaches. */
 export function gradeFor<G extends Pick<Grade, "min">>(grades: readonly G[], points: number): G {
-  return grades.find((g) => points >= g.min) ?? grades[grades.length - 1]!;
+  const total = roundPoints(points);
+  return grades.find((g) => total >= g.min) ?? grades[grades.length - 1]!;
 }
 
 /** The title shown for a grade: the player's pick when the grade has titleChoices, else its title. */
@@ -135,10 +147,11 @@ export function maxPoints(
     total += pointsFor(questions[pick]!.level, best[pick]!);
     level = nextLevel(rules, level, best[pick]!);
   }
-  return total;
+  return roundPoints(total);
 }
 
-/** Points as the player sees them: whole numbers as is, halves with one decimal. */
+/** Points as the player sees them: whole numbers as is, others with one decimal. */
 export function formatPoints(points: number): string {
-  return points % 1 ? points.toFixed(1) : String(points);
+  const p = roundPoints(points);
+  return p % 1 ? p.toFixed(1) : String(p);
 }

@@ -327,7 +327,7 @@ test("rules.credit may be left out: Choice correct / close / wrong, Score 4 leve
   delete bare.rules.credit;
   const r = await present(bare);
   assert.ok(r.data, r.message);
-  assert.deepEqual(r.data.script.rules.credit, { Choice: { correct: 1, close: 0.5, wrong: 0 }, Score: [0, 0, 0.5, 1] });
+  assert.deepEqual(r.data.script.rules.credit, { Choice: { correct: 1, close: 0.5, wrong: 0 }, Score: [0, 1 / 3, 2 / 3, 1] });
   assert.match(r.jsonData!.levels, /max 8 points/);
   const schema = JSON.parse((await run({}, { action: "getSchema" })).message);
   assert.ok(!schema.properties.rules.required.includes("credit"), "credit is optional in getSchema");
@@ -553,7 +553,7 @@ test("gradeRequest grades one answer on the server with the host's key", async (
     assert.deepEqual(g, { type: "Choice", result: "correct", probabilities: { correct: 0.9, close: 0.07, wrong: 0.03 }, credit: 1, points: 2 });
     const s = await gradeRequest({ kind: "grade", script: SAMPLE_SCRIPT, questionId: "L3-01", answer: "x" }, env);
     assert.equal(s.result, 2);
-    assert.equal(s.points, 1.5);
+    assert.equal(s.points, 2); // 2/3 of a ★3 question
     assert.equal(jev.seen[0].auth, "Bearer test-key");
     assert.equal(jev.seen[0].body.state.answer, "酸素");
     // A blank answer is the lowest grade without asking JEV (which has graded an empty answer correct).

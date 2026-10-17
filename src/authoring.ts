@@ -133,7 +133,7 @@ A KenteiScript is a quiz the user answers by TYPING each answer in their own wor
 ## Shape of a chat quiz
 - Everything in the user's language: meta, questions, explanations, instructions and criteria.
 - 3-10 questions, levels 1-3 starting at 2, at least one question per level; questionsPerGame no more than the number of questions. A full-credit answer moves the next question up a level, half credit keeps it, less moves it down.
-- Leave out rules.credit. The default gives Choice the labels correct (1) / close (0.5) / wrong (0) and Score 4 levels (0-3, worth 0 / 0 / 0.5 / 1). Points are level x credit.
+- Leave out rules.credit. The default gives Choice the labels correct (1) / close (0.5) / wrong (0) and Score 4 levels (0-3, worth 0 / 1/3 / 2/3 / 1). Points are level x credit, to one decimal.
 - rules.grades highest first, the last with min 0, every min reachable: present and checkScript report the points of a perfect game; keep every min at or below it.
 - meta.rules tells the player how the quiz works in their terms. Never mention Choice / Score, 「4択」 or "multiple choice".
 

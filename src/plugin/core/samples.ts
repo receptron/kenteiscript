@@ -16,7 +16,7 @@ export const SAMPLE_SCRIPT: KenteiScript = {
     startLevel: 2,
     minLevel: 1,
     maxLevel: 3,
-    credit: { Choice: { correct: 1, close: 0.5, wrong: 0 }, Score: [0, 0, 0.5, 1] },
+    credit: { Choice: { correct: 1, close: 0.5, wrong: 0 }, Score: [0, 1 / 3, 2 / 3, 1] },
     grades: [
       // Every answer right earns 8 points: the game asks ★2, ★3, then the ★3s have run out (★2, ★1).
       { grade: "A", min: 7, title: "光合成マスター" },

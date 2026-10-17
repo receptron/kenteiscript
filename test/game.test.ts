@@ -13,7 +13,7 @@ const quizzes: [string, KenteiScript][] = readdirSync(join(root, "quizzes"))
   // As the Worker reads them: rules.credit may be left out (the schema's default).
   .map((f) => [f, game.withDefaultCredit(JSON.parse(readFileSync(join(root, "quizzes", f), "utf8"))) as KenteiScript]);
 
-const usualCredit = { Choice: { correct: 1, close: 0.5, wrong: 0 }, Score: [0, 0, 0.5, 1] };
+const usualCredit = { Choice: { correct: 1, close: 0.5, wrong: 0 }, Score: [0, 1 / 3, 2 / 3, 1] };
 
 test("withDefaultCredit fills rules.credit only when it is left out", () => {
   assert.deepEqual(game.withDefaultCredit({ rules: {} }).rules.credit, usualCredit);
@@ -60,6 +60,20 @@ test("creditFor and pointsFor", () => {
   assert.equal(game.creditFor(r, "Score", "2"), 0.5);
   assert.equal(game.creditFor(r, "Choice", "nonsense"), 0);
   assert.equal(game.pointsFor(4, 0.5), 2);
+});
+
+test("the default Score credit is the level's share of the top: 2/3 of a ★3 question is 2 points", () => {
+  const r = { credit: game.defaultCredit() };
+  assert.equal(game.pointsFor(3, game.creditFor(r, "Score", 2)), 2);
+  assert.equal(game.pointsFor(3, game.creditFor(r, "Score", 1)), 1);
+  assert.equal(game.pointsFor(5, game.creditFor(r, "Score", 2)), 3.3);
+  assert.equal(game.pointsFor(4, game.creditFor(r, "Score", 2)), 2.7);
+  assert.equal(game.levelStep(game.creditFor(r, "Score", 2)), 0);
+  assert.equal(game.levelStep(game.creditFor(r, "Score", 1)), -1);
+  // 0.1 + 0.2 is 0.30000000000000004 in floating point: totals are rounded before grading and display
+  assert.equal(game.formatPoints(0.1 + 0.2), "0.3");
+  assert.equal(game.formatPoints(3.3 + 2.7), "6");
+  assert.equal(game.gradeFor([{ min: 0.3 }, { min: 0 }], 0.1 + 0.2).min, 0.3);
 });
 
 test("pickQuestion: an unused question at the level, else the nearest level", () => {

@@ -705,7 +705,7 @@
         $("fb-mark").className = `mark ${v.cls}`;
         $("fb-label").textContent = v.label;
         $("fb-label").className = v.cls;
-        $("fb-sub").textContent = `+${g.points % 1 ? g.points.toFixed(1) : g.points} 点`;
+        $("fb-sub").textContent = `+${kentei.formatPoints(g.points)} 点`;
         $("fb-explain").textContent = g.explanation;
         const step = move(g);
         const before = game.level;
@@ -772,7 +772,7 @@
         const max = kentei.maxPoints(bank.rules, bank.questions);
         $("r-grade").textContent = grade.grade;
         $("r-title").textContent = titleOf(grade);
-        $("r-score").textContent = `${points % 1 ? points.toFixed(1) : points} 点（最高 ${max} 点）`;
+        $("r-score").textContent = `${kentei.formatPoints(points)} 点（最高 ${max} 点）`;
         if (finished) renderDistribution(grade, finished.stats);
         else $("r-dist").innerHTML = `<p class="dist-caption">みんなの結果を読み込めませんでした。</p>`;
         $("r-review").innerHTML = game.history

@@ -1,7 +1,7 @@
 // MulmoKentei Worker: serves the quiz API, grades answers with JEV, and keeps
 // games and results in D1. The page is served from public/ as static assets.
 import { gradeAnswer, gradeFor, publicQuiz } from "./grading.ts";
-import { withDefaultCredit } from "./game.ts";
+import { roundPoints, withDefaultCredit } from "./game.ts";
 import type { KenteiScript } from "./kentei-script.ts";
 import { quizzes as written } from "./quizzes.gen.ts"; // every KenteiScript in quizzes/, bundled by scripts/gen-quizzes.mjs
 
@@ -105,7 +105,7 @@ async function finishGame(env: Env, body: Record<string, unknown>) {
   if (!row || !quiz || row.n < quiz.rules.questionsPerGame) {
     return json(400, { error: "この挑戦はまだ終わっていないか、期限が切れています" });
   }
-  const points = row.points;
+  const points = roundPoints(row.points);
   const grade = gradeFor(quiz, points);
   const time = new Date().toISOString().slice(0, 19);
   const [inserted] = await env.DB.batch([

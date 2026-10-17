@@ -96,9 +96,12 @@ deploy, so a bad file fails the build, not a game. Consequences:
 ## Run after changes
 
 - `yarn format` — Prettier over the whole repo (`.prettierrc.json`); CI runs `yarn format:check`.
-- `yarn lint` — ESLint (`eslint.config.js`). Not gated in CI yet: the existing violations have no
-  recorded baseline, so keep new code clean rather than expecting a green run.
-- `yarn typecheck` — regenerates `src/quizzes.gen.ts`, `public/game.js` and the Worker types,
+- `yarn lint` — `yarn gen`, then ESLint (`eslint.config.js`), gated in CI. The type-aware rules
+  need the generated files. Violations that predate the rules are
+  recorded in `eslint-suppressions.json` (`QUALITY.md` lists them); new code gets none. After
+  fixing a recorded one, run `npx ever-better prune` and commit the files it updates, or lint
+  fails on the unused suppression. Never soften a rule or add to the baseline to get green.
+- `yarn typecheck` — regenerates (`yarn gen`) `src/quizzes.gen.ts`, `public/game.js` and the Worker types,
   then runs `tsc` (Worker, scripts, tests) and `vue-tsc -p tsconfig.plugin.json` (the plugin,
   with stricter flags).
 - `yarn test:unit` — the game rules and the plugin core (`node --test test/*.test.ts`). No
@@ -116,7 +119,7 @@ deploy, so a bad file fails the build, not a game. Consequences:
   real (pennies), prints the probability of every grade, and is the only check that a rubric
   grades the way you meant. `typecheck` and `yarn test` pass with a rubric that grades nonsense.
 
-CI (`.github/workflows/ci.yml`) runs `format:check`, typecheck, `check:quizzes`, the unit tests, the plugin build
+CI (`.github/workflows/ci.yml`) runs `format:check`, `lint`, typecheck, `check:quizzes`, the unit tests, the plugin build
 and View test, and `yarn test` for every quiz on each push and PR. It has no JEV key: `scripts/mock-jev.mjs` stands in, reached through the Worker's
 `JEV_URL` var (`wrangler dev --var JEV_URL:…`), and grades everything as the lowest grade while
 rejecting a malformed request. So CI proves the plumbing, never the rubrics — `test:grading` with

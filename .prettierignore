@@ -1,2 +1,7 @@
 dist/
 yarn.lock
+
+# Written by ever-better (the ledger and ESLint's baseline).
+.ever-better/
+QUALITY.md
+eslint-suppressions.json

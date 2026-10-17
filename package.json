@@ -51,7 +51,8 @@
     "test:grading": "node scripts/test-grading.ts",
     "check:quizzes": "node scripts/check-quizzes.mjs",
     "mock:jev": "node scripts/mock-jev.mjs",
-    "typecheck": "node scripts/gen-quizzes.mjs && node scripts/gen-game.mjs && wrangler types && tsc --noEmit && vue-tsc -p tsconfig.plugin.json --noEmit",
+    "gen": "node scripts/gen-quizzes.mjs && node scripts/gen-game.mjs && wrangler types",
+    "typecheck": "yarn -s gen && tsc --noEmit && vue-tsc -p tsconfig.plugin.json --noEmit",
     "setup:cloudflare": "node scripts/setup.mjs --remote",
     "deploy": "node scripts/remote.mjs deploy",
     "remote": "node scripts/remote.mjs",
@@ -60,7 +61,7 @@
     "prepublishOnly": "yarn build:plugin && yarn test:plugin",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
-    "lint": "eslint ."
+    "lint": "yarn -s gen && eslint ."
   },
   "engines": {
     "node": ">=22.18"

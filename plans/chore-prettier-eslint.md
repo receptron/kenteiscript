@@ -26,3 +26,14 @@ dependabot, the Codex review workflow, and a win/mac CI matrix.
 - Generated, git-ignored files (`src/quizzes.gen.ts`, `public/game.js`,
   `worker-configuration.d.ts`) are ignored, not linted.
 - Lint is not gated in CI yet: without a frozen baseline every existing violation would fail it.
+
+## PR 3 — Baseline and the lint gate
+
+- Off: `id-length` (short names are the idiom here), `security/detect-object-injection` and
+  `security/detect-non-literal-fs-filename` (every hit was a typed key or a local script reading
+  the repo's own files), `vue/one-component-per-file` in tests. `no-floating-promises` allows
+  `node:test`'s `test` / `describe` / `it`.
+- Needed first (#16): one TypeScript copy. With a nested 6.0.3 beside the root 5.9.3, type-aware
+  rules reported nonsense and the baseline would have recorded it.
+- `ever-better freeze` writes `eslint-suppressions.json`, `.ever-better/state.json` and
+  `QUALITY.md`; CI runs `yarn lint`, which fails on a new violation and on a stale suppression.
